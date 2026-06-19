@@ -76,7 +76,7 @@
     ui.return_to_status();
   }
 
-#endif HAS_HEATED_BED
+#endif // HAS_HEATED_BED
 
 void menu_temperature() {
   #if HAS_HEATED_BED
