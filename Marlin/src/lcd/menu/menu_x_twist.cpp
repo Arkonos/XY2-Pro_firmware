@@ -129,23 +129,16 @@ void xatc_wizard_goto_next_point() {
     const float x = xatc.start + manual_probe_index * xatc.spacing;
 
     // Avoid probing outside the round or hexagonal area
-    if (!TERN0(IS_KINEMATIC, !probe.can_reach(x, XATC_Y_POSITION))) {
-      ui.wait_for_move = true;
-      ui.goto_screen(xatc_wizard_moving);
+    ui.wait_for_move = true;
+    ui.goto_screen(xatc_wizard_moving);
 
-      // Deploy certain probes before starting probing
-      TERN_(BLTOUCH, do_z_clearance(Z_CLEARANCE_DEPLOY_PROBE));
-
-      xatc.set_enabled(false);
-      measured_z = probe.probe_at_point(x, XATC_Y_POSITION, PROBE_PT_STOW);
-      xatc.set_enabled(true);
-      current_position += probe.offset_xy;
-      current_position.z = (XATC_START_Z) - probe.offset.z + measured_z;
-      line_to_current_position(MMM_TO_MMS(XY_PROBE_FEEDRATE));
-      ui.wait_for_move = false;
-    }
-    else
-      manual_probe_index++; // Go to next point
+    xatc.set_enabled(false);
+    measured_z = probe.probe_at_point(x, XATC_Y_POSITION, PROBE_PT_STOW);
+    xatc.set_enabled(true);
+    current_position += probe.offset_xy;
+    current_position.z = (XATC_START_Z) - probe.offset.z + measured_z;
+    line_to_current_position(MMM_TO_MMS(XY_PROBE_FEEDRATE));
+    ui.wait_for_move = false;
   }
   else {
     // Compute the z-offset by averaging the values found with this wizard

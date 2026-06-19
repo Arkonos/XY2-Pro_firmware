@@ -49,10 +49,6 @@
  *
  *   I #  Preset      Heat the Nozzle and Bed based on a Material Preset (if material presets are defined).
  *
- *   F #  Filament    Used to specify the diameter of the filament being used. If not specified
- *                    1.75mm filament is assumed. If you are not getting acceptable results by using the
- *                    'correct' numbers, you can scale this number up or down a little bit to change the amount
- *                    of filament that is being extruded during the printing of the various lines on the bed.
  *
  *   K    Keep-On     Keep the heaters turned on at the end of the command.
  *
@@ -108,7 +104,6 @@
 #include "../../MarlinCore.h"
 #include "../../module/planner.h"
 #include "../../module/motion.h"
-#include "../../module/tool_change.h"
 #include "../../module/temperature.h"
 #include "../../lcd/marlinui.h"
 
@@ -823,10 +818,7 @@ void GcodeSuite::G26() {
           xyz_float_t p = { circle.x + _COS(ind    ), circle.y + _SIN(ind    ), g26.layer_height },
                       q = { circle.x + _COS(ind + 1), circle.y + _SIN(ind + 1), g26.layer_height };
 
-          #if IS_KINEMATIC
-            // Check to make sure this segment is entirely on the bed, skip if not.
-            if (!position_is_reachable(p) || !position_is_reachable(q)) continue;
-          #elif HAS_ENDSTOPS
+          #if HAS_ENDSTOPS
             LIMIT(p.x, X_MIN_POS + 1, X_MAX_POS - 1); // Prevent hitting the endstops
             LIMIT(p.y, Y_MIN_POS + 1, Y_MAX_POS - 1);
             LIMIT(q.x, X_MIN_POS + 1, X_MAX_POS - 1);

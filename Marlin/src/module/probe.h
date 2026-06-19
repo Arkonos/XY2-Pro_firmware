@@ -66,10 +66,6 @@
   extern abc_float_t offset_sensorless_adj;
 #endif
 
-#if TRONXY_UI
-extern xyz_pos_t Probe_Offset;
-#endif
-
 class Probe {
 public:
 
@@ -81,9 +77,7 @@ public:
   #endif
 
   #if HAS_BED_PROBE
-    #if !TRONXY_UI
     static xyz_pos_t offset;
-    #endif
 
     #if EITHER(PREHEAT_BEFORE_PROBING, PREHEAT_BEFORE_LEVELING)
       static void preheat_for_probing(const celsius_t hotend_temp, const celsius_t bed_temp);
@@ -93,51 +87,26 @@ public:
 
     static bool set_deployed(const bool deploy);
 
-    #if IS_KINEMATIC
-
-      #if HAS_PROBE_XY_OFFSET
-        // Return true if the both nozzle and the probe can reach the given point.
-        // Note: This won't work on SCARA since the probe offset rotates with the arm.
-        static bool can_reach(const_float_t rx, const_float_t ry, const bool probe_relative=true) {
-          if (probe_relative) {
-            return position_is_reachable(rx - offset_xy.x, ry - offset_xy.y) // The nozzle can go where it needs to go?
-                && position_is_reachable(rx, ry, PROBING_MARGIN);            // Can the probe also go near there?
-          }
-          else {
-            return position_is_reachable(rx, ry)
-                && position_is_reachable(rx + offset_xy.x, ry + offset_xy.y, PROBING_MARGIN);
-          }
-        }
-      #else
-        static bool can_reach(const_float_t rx, const_float_t ry, const bool=true) {
-          return position_is_reachable(rx, ry)
-              && position_is_reachable(rx, ry, PROBING_MARGIN);
-        }
-      #endif
-
-    #else
-
-      /**
-       * Return whether the given position is within the bed, and whether the nozzle
-       * can reach the position required to put the probe at the given position.
-       *
-       * Example: For a probe offset of -10,+10, then for the probe to reach 0,0 the
-       *          nozzle must be be able to reach +10,-10.
-       */
-      static bool can_reach(const_float_t rx, const_float_t ry, const bool probe_relative=true) {
-        if (probe_relative) {
-          return position_is_reachable(rx - offset_xy.x, ry - offset_xy.y)
-              && COORDINATE_OKAY(rx, min_x() - fslop, max_x() + fslop)
-              && COORDINATE_OKAY(ry, min_y() - fslop, max_y() + fslop);
-        }
-        else {
-          return position_is_reachable(rx, ry)
-              && COORDINATE_OKAY(rx + offset_xy.x, min_x() - fslop, max_x() + fslop)
-              && COORDINATE_OKAY(ry + offset_xy.y, min_y() - fslop, max_y() + fslop);
-        }
+    /**
+     * Return whether the given position is within the bed, and whether the nozzle
+     * can reach the position required to put the probe at the given position.
+     *
+     * Example: For a probe offset of -10,+10, then for the probe to reach 0,0 the
+     *          nozzle must be be able to reach +10,-10.
+     */
+    static bool can_reach(const_float_t rx, const_float_t ry, const bool probe_relative=true) {
+      if (probe_relative) {
+        return position_is_reachable(rx - offset_xy.x, ry - offset_xy.y)
+            && COORDINATE_OKAY(rx, min_x() - fslop, max_x() + fslop)
+            && COORDINATE_OKAY(ry, min_y() - fslop, max_y() + fslop);
       }
+      else {
+        return position_is_reachable(rx, ry)
+            && COORDINATE_OKAY(rx + offset_xy.x, min_x() - fslop, max_x() + fslop)
+            && COORDINATE_OKAY(ry + offset_xy.y, min_y() - fslop, max_y() + fslop);
+      }
+    }
 
-    #endif
 
     static void move_z_after_probing() {
       #ifdef Z_AFTER_PROBING
@@ -171,11 +140,7 @@ public:
 
   static bool good_bounds(const xy_pos_t &lf, const xy_pos_t &rb) {
     return (
-      #if IS_KINEMATIC
-        can_reach(lf.x, 0) && can_reach(rb.x, 0) && can_reach(0, lf.y) && can_reach(0, rb.y)
-      #else
-        can_reach(lf) && can_reach(rb)
-      #endif
+      can_reach(lf) && can_reach(rb)
     );
   }
 
@@ -191,16 +156,6 @@ public:
   static bool stow()   { return set_deployed(false); }
 
   #if HAS_BED_PROBE || HAS_LEVELING
-    #if IS_KINEMATIC
-      static constexpr float printable_radius = (
-        TERN_(DELTA, DELTA_PRINTABLE_RADIUS)
-        TERN_(IS_SCARA, SCARA_PRINTABLE_RADIUS)
-      );
-      static constexpr float probe_radius(const xy_pos_t &probe_offset_xy=offset_xy) {
-        return printable_radius - _MAX(PROBING_MARGIN, HYPOT(probe_offset_xy.x, probe_offset_xy.y));
-      }
-    #endif
-
     /**
      * The nozzle is only able to move within the physical bounds of the machine.
      * If the PROBE has an OFFSET Marlin may need to apply additional limits so
@@ -211,29 +166,16 @@ public:
      * far enough past the right edge).
      */
     static constexpr float _min_x(const xy_pos_t &probe_offset_xy=offset_xy) {
-      return TERN(IS_KINEMATIC,
-        (X_CENTER) - probe_radius(probe_offset_xy),
-        _MAX((X_MIN_BED) + (PROBING_MARGIN_LEFT), (X_MIN_POS) + probe_offset_xy.x)
-      );
+      return _MAX((X_MIN_BED) + (PROBING_MARGIN_LEFT), (X_MIN_POS) + probe_offset_xy.x);
     }
     static constexpr float _max_x(const xy_pos_t &probe_offset_xy=offset_xy) {
-      return TERN(IS_KINEMATIC,
-        (X_CENTER) + probe_radius(probe_offset_xy),
-        _MIN((X_MAX_BED) - (PROBING_MARGIN_RIGHT), (X_MAX_POS) + probe_offset_xy.x)
-      );
+      return _MIN((X_MAX_BED) - (PROBING_MARGIN_RIGHT), (X_MAX_POS) + probe_offset_xy.x);
     }
     static constexpr float _min_y(const xy_pos_t &probe_offset_xy=offset_xy) {
-      return TERN(IS_KINEMATIC,
-        (Y_CENTER) - probe_radius(probe_offset_xy),
-        _MAX((Y_MIN_BED) + (PROBING_MARGIN_FRONT), (Y_MIN_POS) + probe_offset_xy.y)
-      );
+      return _MAX((Y_MIN_BED) + (PROBING_MARGIN_FRONT), (Y_MIN_POS) + probe_offset_xy.y);
     }
     static constexpr float _max_y(const xy_pos_t &probe_offset_xy=offset_xy) {
-      return TERN(IS_KINEMATIC,
-        (Y_CENTER) + probe_radius(probe_offset_xy),
-        _MIN((Y_MAX_BED) - (PROBING_MARGIN_BACK), (Y_MAX_POS) + probe_offset_xy.y)
-      );
-    }
+      return _MIN((Y_MAX_BED) - (PROBING_MARGIN_BACK), (Y_MAX_POS) + probe_offset_xy.y)}
 
     static float min_x() { return _min_x() TERN_(NOZZLE_AS_PROBE, TERN_(HAS_HOME_OFFSET, - home_offset.x)); }
     static float max_x() { return _max_x() TERN_(NOZZLE_AS_PROBE, TERN_(HAS_HOME_OFFSET, - home_offset.x)); }
@@ -253,12 +195,8 @@ public:
 
     public:
       static constexpr bool can_reach(float x, float y) {
-        #if IS_KINEMATIC
-          return HYPOT2(x, y) <= sq(probe_radius(default_probe_xy_offset));
-        #else
-          return COORDINATE_OKAY(x, _min_x(default_probe_xy_offset) - fslop, _max_x(default_probe_xy_offset) + fslop)
-              && COORDINATE_OKAY(y, _min_y(default_probe_xy_offset) - fslop, _max_y(default_probe_xy_offset) + fslop);
-        #endif
+        return COORDINATE_OKAY(x, _min_x(default_probe_xy_offset) - fslop, _max_x(default_probe_xy_offset) + fslop)
+            && COORDINATE_OKAY(y, _min_y(default_probe_xy_offset) - fslop, _max_y(default_probe_xy_offset) + fslop);
       }
 
       static constexpr bool can_reach(const xy_pos_t &point) { return can_reach(point.x, point.y); }
@@ -276,26 +214,14 @@ public:
           points[1] = xy_float_t({ PROBE_PT_2_X, PROBE_PT_2_Y });
           points[2] = xy_float_t({ PROBE_PT_3_X, PROBE_PT_3_Y });
         #else
-          #if IS_KINEMATIC
-            constexpr float SIN0 = 0.0, SIN120 = 0.866025, SIN240 = -0.866025,
-                            COS0 = 1.0, COS120 = -0.5    , COS240 = -0.5;
-            points[0] = xy_float_t({ (X_CENTER) + probe_radius() * COS0,   (Y_CENTER) + probe_radius() * SIN0 });
-            points[1] = xy_float_t({ (X_CENTER) + probe_radius() * COS120, (Y_CENTER) + probe_radius() * SIN120 });
-            points[2] = xy_float_t({ (X_CENTER) + probe_radius() * COS240, (Y_CENTER) + probe_radius() * SIN240 });
-          #else
-            points[0] = xy_float_t({ min_x(), min_y() });
-            points[1] = xy_float_t({ max_x(), min_y() });
-            points[2] = xy_float_t({ (min_x() + max_x()) / 2, max_y() });
-          #endif
+          points[0] = xy_float_t({ min_x(), min_y() });
+          points[1] = xy_float_t({ max_x(), min_y() });
+          points[2] = xy_float_t({ (min_x() + max_x()) / 2, max_y() });
         #endif
       }
     #endif
 
   #endif // HAS_BED_PROBE
-
-  #if HAS_Z_SERVO_PROBE
-    static void servo_probe_init();
-  #endif
 
   #if HAS_QUIET_PROBING
     static void set_probing_paused(const bool p);

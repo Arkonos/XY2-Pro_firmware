@@ -2,11 +2,11 @@
   "build": {
     "core": "stm32",
     "cpu": "cortex-m4",
-    "extra_flags": "-DSTM32F4 -DSTM32F423xx -DSTM32F4xx",
+    "extra_flags": "-DSTM32F423xx -DSTM32F4xx",
     "f_cpu": "100000000L",
-    "mcu": "stm32f423rht6",
+    "mcu": "stm32f423rh",
     "product_line": "STM32F423xx",
-    "variant": "STM32F4xx/F413R(G-H)T_F423RHT"
+    "variant": "Generic_F4x3Rx"
   },
   "debug": {
     "jlink_device": "STM32F423RH",

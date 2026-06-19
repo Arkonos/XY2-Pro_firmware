@@ -33,10 +33,6 @@
   #include "../gcode/queue.h"
 #endif
 
-#if HAS_FILAMENT_SENSOR
-  #include "runout.h"
-#endif
-
 HostUI hostui;
 
 void HostUI::action(FSTR_P const fstr, const bool eol) {
@@ -142,18 +138,8 @@ void HostUI::action(FSTR_P const fstr, const bool eol) {
     _prompt_show(btn1, btn2);
   }
 
-  #if ENABLED(ADVANCED_PAUSE_FEATURE)
-    void HostUI::filament_load_prompt() {
-      const bool disable_to_continue = TERN0(HAS_FILAMENT_SENSOR, runout.filament_ran_out);
-      prompt_do(PROMPT_FILAMENT_RUNOUT, F("Paused"), F("PurgeMore"),
-        disable_to_continue ? F("DisableRunout") : FPSTR(CONTINUE_STR)
-      );
-    }
-  #endif
-
   //
   // Handle responses from the host, such as:
-  //  - Filament runout responses: Purge More, Continue
   //  - General "Continue" response
   //  - Resume Print response
   //  - Dismissal of info
@@ -162,36 +148,8 @@ void HostUI::action(FSTR_P const fstr, const bool eol) {
     const PromptReason hpr = host_prompt_reason;
     host_prompt_reason = PROMPT_NOT_DEFINED;  // Reset now ahead of logic
     switch (hpr) {
-      case PROMPT_FILAMENT_RUNOUT:
-        switch (response) {
-
-          case 0: // "Purge More" button
-            #if BOTH(M600_PURGE_MORE_RESUMABLE, ADVANCED_PAUSE_FEATURE)
-              pause_menu_response = PAUSE_RESPONSE_EXTRUDE_MORE;  // Simulate menu selection (menu exits, doesn't extrude more)
-            #endif
-            break;
-
-          case 1: // "Continue" / "Disable Runout" button
-            #if BOTH(M600_PURGE_MORE_RESUMABLE, ADVANCED_PAUSE_FEATURE)
-              pause_menu_response = PAUSE_RESPONSE_RESUME_PRINT;  // Simulate menu selection
-            #endif
-            #if HAS_FILAMENT_SENSOR
-              if (runout.filament_ran_out) {                      // Disable a triggered sensor
-                runout.enabled = false;
-                runout.reset();
-              }
-            #endif
-            break;
-        }
-        break;
       case PROMPT_USER_CONTINUE:
         TERN_(HAS_RESUME_CONTINUE, wait_for_user = false);
-        break;
-      case PROMPT_PAUSE_RESUME:
-        #if BOTH(ADVANCED_PAUSE_FEATURE, SDSUPPORT)
-          extern const char M24_STR[];
-          queue.inject_P(M24_STR);
-        #endif
         break;
       case PROMPT_INFO:
         break;

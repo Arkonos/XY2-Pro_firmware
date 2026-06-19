@@ -1,7 +1,7 @@
 {
   "build": {
     "cpu": "cortex-m4",
-    "extra_flags": "-DSTM32L4 -DSTM32L476xx",
+    "extra_flags": "-DSTM32L476xx",
     "f_cpu": "80000000L",
     "mcu": "stm32l476jg",
     "product_line": "STM32L476xx"
@@ -20,10 +20,11 @@
     ],
     "openocd_board": "st_nucleo_l4",
     "openocd_target": "stm32l4x",
-    "svd_path": "STM32L476.svd"
+    "svd_path": "STM32L4x6.svd"
   },
   "frameworks": [
     "cmsis",
+    "mbed",
     "stm32cube",
     "libopencm3"
   ],

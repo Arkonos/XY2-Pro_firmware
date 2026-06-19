@@ -36,11 +36,7 @@ void GcodeSuite::M851() {
   if (!parser.seen("XYZ")) return M851_report();
 
   // Start with current offsets and modify
-  #if TRONXY_UI
-  xyz_pos_t offs = Probe_Offset;
-  #else
   xyz_pos_t offs = probe.offset;
-  #endif
 
   // Assume no errors
   bool ok = true;
@@ -84,11 +80,7 @@ void GcodeSuite::M851() {
   }
 
   // Save the new offsets
-  #if TRONXY_UI
-  if (ok) Probe_Offset = offs;
-  #else
   if (ok) probe.offset = offs;
-  #endif
 }
 
 void GcodeSuite::M851_report(const bool forReplay/*=true*/) {
@@ -102,11 +94,7 @@ void GcodeSuite::M851_report(const bool forReplay/*=true*/) {
     #else
       PSTR("  M851 X0 Y0 Z")
     #endif
-    #if TRONXY_UI
-    , LINEAR_UNIT(Probe_Offset.z)
-    #else
     , LINEAR_UNIT(probe.offset.z)
-    #endif
     , PSTR(" ;")
   );
   say_units();

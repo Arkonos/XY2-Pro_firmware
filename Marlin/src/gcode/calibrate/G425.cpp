@@ -33,7 +33,6 @@
 #include "../../lcd/marlinui.h"
 #include "../../module/motion.h"
 #include "../../module/planner.h"
-#include "../../module/tool_change.h"
 #include "../../module/endstops.h"
 #include "../../feature/bedlevel/bedlevel.h"
 
@@ -158,25 +157,6 @@ inline void park_above_object(measurements_t &m, const float uncertainty) {
   current_position = xy_pos_t(m.obj_center);
   calibration_move();
 }
-
-#if HAS_MULTI_HOTEND
-  inline void set_nozzle(measurements_t &m, const uint8_t extruder) {
-    if (extruder != active_extruder) {
-      park_above_object(m, CALIBRATION_MEASUREMENT_UNKNOWN);
-      tool_change(extruder);
-    }
-  }
-#endif
-
-#if HAS_HOTEND_OFFSET
-
-  inline void normalize_hotend_offsets() {
-    LOOP_S_L_N(e, 1, HOTENDS)
-      hotend_offset[e] -= hotend_offset[0];
-    hotend_offset[0].reset();
-  }
-
-#endif
 
 #if !PIN_EXISTS(CALIBRATION)
   #include "../../module/probe.h"
@@ -610,17 +590,6 @@ inline void probe_sides(measurements_t &m, const float uncertainty) {
     SERIAL_EOL();
     UNUSED(m);
   }
-
-  #if HAS_HOTEND_OFFSET
-    //
-    // This function requires normalize_hotend_offsets() to be called
-    //
-    inline void report_hotend_offsets() {
-      LOOP_S_L_N(e, 1, HOTENDS)
-        SERIAL_ECHOLNPGM_P(PSTR("T"), e, PSTR(" Hotend Offset X"), hotend_offset[e].x, SP_Y_STR, hotend_offset[e].y, SP_Z_STR, hotend_offset[e].z);
-    }
-  #endif
-
 #endif // CALIBRATION_REPORTING
 
 /**
@@ -753,14 +722,6 @@ inline void calibrate_toolhead(measurements_t &m, const float uncertainty, const
 
   probe_sides(m, uncertainty);
 
-  // Adjust the hotend offset
-  #if HAS_HOTEND_OFFSET
-    if (ENABLED(HAS_X_CENTER) && AXIS_CAN_CALIBRATE(X)) hotend_offset[extruder].x += m.pos_error.x;
-    if (ENABLED(HAS_Y_CENTER) && AXIS_CAN_CALIBRATE(Y)) hotend_offset[extruder].y += m.pos_error.y;
-                             if (AXIS_CAN_CALIBRATE(Z)) hotend_offset[extruder].z += m.pos_error.z;
-    normalize_hotend_offsets();
-  #endif
-
   // Correct for positional error, so the object
   // is at the known actual spot
   planner.synchronize();
@@ -788,12 +749,6 @@ inline void calibrate_toolhead(measurements_t &m, const float uncertainty, const
 inline void calibrate_all_toolheads(measurements_t &m, const float uncertainty) {
   TEMPORARY_BACKLASH_CORRECTION(backlash.all_on);
   TEMPORARY_BACKLASH_SMOOTHING(0.0f);
-
-  HOTEND_LOOP() calibrate_toolhead(m, uncertainty, e);
-
-  TERN_(HAS_HOTEND_OFFSET, normalize_hotend_offsets());
-
-  TERN_(HAS_MULTI_HOTEND, set_nozzle(m, 0));
 }
 
 /**
@@ -809,8 +764,6 @@ inline void calibrate_all_toolheads(measurements_t &m, const float uncertainty) 
  */
 inline void calibrate_all() {
   measurements_t m;
-
-  TERN_(HAS_HOTEND_OFFSET, reset_hotend_offsets());
 
   TEMPORARY_BACKLASH_CORRECTION(backlash.all_on);
   TEMPORARY_BACKLASH_SMOOTHING(0.0f);
@@ -867,12 +820,7 @@ void GcodeSuite::G425() {
       report_measured_faces(m);
       report_measured_center(m);
       report_measured_backlash(m);
-      report_measured_nozzle_dimensions(m);
       report_measured_positional_error(m);
-      #if HAS_HOTEND_OFFSET
-        normalize_hotend_offsets();
-        report_hotend_offsets();
-      #endif
     }
   #endif
   else

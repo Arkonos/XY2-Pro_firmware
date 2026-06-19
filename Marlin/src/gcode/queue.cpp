@@ -30,7 +30,6 @@ GCodeQueue queue;
 #include "gcode.h"
 
 #include "../lcd/marlinui.h"
-#include "../sd/cardreader.h"
 #include "../module/motion.h"
 #include "../module/planner.h"
 #include "../module/temperature.h"
@@ -47,10 +46,6 @@ GCodeQueue queue;
 
 #if ENABLED(BINARY_FILE_TRANSFER)
   #include "../feature/binary_stream.h"
-#endif
-
-#if ENABLED(POWER_LOSS_RECOVERY)
-  #include "../feature/powerloss.h"
 #endif
 
 #if ENABLED(GCODE_REPEAT_MARKERS)
@@ -104,7 +99,6 @@ void GCodeQueue::RingBuffer::commit_command(bool skip_ok
 ) {
   commands[index_w].skip_ok = skip_ok;
   TERN_(HAS_MULTI_SERIAL, commands[index_w].port = serial_ind);
-  TERN_(POWER_LOSS_RECOVERY, recovery.commit_sdpos(index_w));
   advance_pos(index_w, 1);
 }
 
@@ -198,12 +192,6 @@ bool GCodeQueue::process_injected_command() {
 void GCodeQueue::enqueue_one_now(const char * const cmd) { 
   while (!enqueue_one(cmd)) {
     idle(); 
-    #if TRONXY_UI
-    if(globalStop) {
-      clear();
-      break;
-    }
-    #endif
   }
 }
 void GCodeQueue::enqueue_one_now(FSTR_P const fcmd) { while (!enqueue_one(fcmd)) idle(); }
@@ -361,13 +349,10 @@ inline void process_stream_char(const char c, uint8_t &sis, char (&buff)[MAX_CMD
       sis = PS_QUOTED;
 
   #endif
-
-  #if !TRONXY_UI
   else if (c == ';') {          // Start end-of-line comment
     sis = PS_EOL;
     return;
   }
-  #endif
 
   #if ENABLED(PAREN_COMMENTS)
     else if (c == '(') {        // Start inline comment
@@ -407,9 +392,6 @@ inline bool process_line_done(uint8_t &sis, char (&buff)[MAX_CMD_SIZE], int &ind
  * Exit when the buffer is full or when no more characters are
  * left on the serial port.
  */
-#if TRONXY_UI
-uint8_t saveSerialIndex = 0;
-#endif
 void GCodeQueue::get_serial_commands() {
   #if ENABLED(BINARY_FILE_TRANSFER)
     if (card.flag.binary_mode) {
@@ -439,18 +421,8 @@ void GCodeQueue::get_serial_commands() {
     hadData = false;
 
     LOOP_L_N(p, NUM_SERIAL) {
-      #if TRONXY_UI
-      if(hasExtraSerialCommand) {
-        if(ring_buffer.full()) {
-          return;
-        }
-        ring_buffer.enqueue(serial_state[saveSerialIndex].line_buffer, false OPTARG(HAS_MULTI_SERIAL, saveSerialIndex));
-        hasExtraSerialCommand = false;
-      }
-      #else
       // Check if the queue is full and exit if it is.
       if (ring_buffer.full()) return;
-      #endif
 
       // No data for this port ? Skip it
       if (!serial_data_available(p)) continue;
@@ -518,14 +490,6 @@ void GCodeQueue::get_serial_commands() {
 
           serial.last_N = gcode_N;
         }
-        #if ENABLED(SDSUPPORT)
-          // Pronterface "M29" and "M29 " has no line number
-          else if (card.flag.saving && !is_M29(command)) {
-            gcode_line_error(F(STR_ERR_NO_CHECKSUM), p);
-            break;
-          }
-        #endif
-
         //
         // Movement commands give an alert when the machine is stopped
         //
@@ -553,46 +517,12 @@ void GCodeQueue::get_serial_commands() {
             case '0': if (command[1] == '4' && command[2] == '1') quickstop_stepper(); break;
           }
         #endif
-        #if TRONXY_UI
-        if(command[0] == 'M' && command[1] == '8' && command[2] == '0' && command[3] == '0')switch(command[4]) {
-          case '5'://急停
-            globalStop = true;
-            stopEmergency();
-            SERIAL_ECHO("M8005-0ok\n");
-            return;
-          case '6'://停止电机动作
-            globalStop = true;
-            quickstop_stepper();
-            // mevt.addEvt(TASK_SEQUENCE,stopMotor);
-            SERIAL_ECHO("M8006-0ok\n");
-            return;
-        }
-        #endif
 
         #if NO_TIMEOUTS > 0
           last_command_time = ms;
         #endif
 
         // Add the command to the queue
-        #if TRONXY_UI //8200 - 8299立即执行的命令
-        if(command[0] == 'M' && command[1] == '8' && command[2] == '2' && \
-        command[3] >= '0' && command[3] <= '9' && \
-        command[4] >= '0' && command[4] <= '9')
-        {
-          gcode.process_subcommands_now(command);
-          continue;
-        }
-        if(ring_buffer.full()) {
-          if(command[0] == 'M' && command[1] == '8' && command[2] == '4' && command[3] == '0' && command[4] == '2') {
-            //M8402不能占用额外的指令
-          }
-          else {
-            hasExtraSerialCommand = true;
-            saveSerialIndex = p;
-          }
-          return;
-        }
-        #endif
         ring_buffer.enqueue(serial.line_buffer, false OPTARG(HAS_MULTI_SERIAL, p));
       }
       else
@@ -601,75 +531,6 @@ void GCodeQueue::get_serial_commands() {
     } // NUM_SERIAL loop
   } // queue has space, serial has data
 }
-
-#if ENABLED(SDSUPPORT)
-
-  /**
-   * Get lines from the SD Card until the command buffer is full
-   * or until the end of the file is reached. Because this method
-   * always receives complete command-lines, they can go directly
-   * into the main command queue.
-   */
-  inline void GCodeQueue::get_sdcard_commands() {
-    static uint8_t sd_input_state = PS_NORMAL;
-
-    // Get commands if there are more in the file
-    if (!IS_SD_FETCHING()) return;
-
-    int sd_count = 0;
-    while (!ring_buffer.full() && !card.eof()) {
-      #if TRONXY_UI
-      if(globalStop)return;
-      #endif
-      const int16_t n = card.get();
-      const bool card_eof = card.eof();
-      #if TRONXY_UI
-      if (n < 0 && !card_eof) {
-        my_print_status = PRINT_PAUSE;//防止运动过程中断电,可以当成暂停来保存,在运动结束后,该状态变成idle
-        tronxyStop();
-        mevt.addEvt(TASK_SEQUENCE,screenReadFailAfter);
-        PrintJobRecovery::info.current_position = current_position;
-        break;
-      }
-      #else
-      if (n < 0 && !card_eof) { SERIAL_ERROR_MSG(STR_SD_ERR_READ); continue; }
-      #endif
-
-      CommandLine &command = ring_buffer.commands[ring_buffer.index_w];
-      const char sd_char = (char)n;
-      const bool is_eol = ISEOL(sd_char);
-      if (is_eol || card_eof) {
-
-        // Reset stream state, terminate the buffer, and commit a non-empty command
-        if (!is_eol && sd_count) ++sd_count;          // End of file with no newline
-        if (!process_line_done(sd_input_state, command.buffer, sd_count)) {
-
-          // M808 L saves the sdpos of the next line. M808 loops to a new sdpos.
-          TERN_(GCODE_REPEAT_MARKERS, repeat.early_parse_M808(command.buffer));
-
-          #if DISABLED(PARK_HEAD_ON_PAUSE)
-            // When M25 is non-blocking it can still suspend SD commands
-            // Otherwise the M125 handler needs to know SD printing is active
-            if (command.buffer[0] == 'M' && command.buffer[1] == '2' && command.buffer[2] == '5' && !NUMERIC(command.buffer[3]))
-              card.pauseSDPrint();
-          #endif
-
-          // Put the new command into the buffer (no "ok" sent)
-          ring_buffer.commit_command(true);
-
-          // Prime Power-Loss Recovery for the NEXT commit_command
-          TERN_(POWER_LOSS_RECOVERY, recovery.cmd_sdpos = card.getIndex());
-        }
-
-        if (card.eof()) card.fileHasFinished();         // Handle end of file reached
-      }
-      else
-        process_stream_char(sd_char, sd_input_state, command.buffer, sd_count);
-    }
-  }
-
-#endif // SDSUPPORT
-
 /**
  * Add to the circular command queue the next command from:
  *  - The command-injection queues (injected_commands_P, injected_commands)
@@ -677,17 +538,10 @@ void GCodeQueue::get_serial_commands() {
  *  - The SD card file being actively printed
  */
 void GCodeQueue::get_available_commands() {
+  if (ring_buffer.full())return;
+  get_serial_commands();
 
-  #if TRONXY_UI
-    if(globalStop)return;
-    get_serial_commands();
-    if (ring_buffer.full())return;
-  #else
-    if (ring_buffer.full())return;
-    get_serial_commands();
-  #endif
 
-  TERN_(SDSUPPORT, get_sdcard_commands());
 }
 
 /**
@@ -705,9 +559,6 @@ void GCodeQueue::advance() {
 
   // Process immediate commands
   if (process_injected_command_P() || process_injected_command()) return;
-  #if TRONXY_UI
-  if(serialPause || my_print_status == PRINT_ERROR)return; //暂停期间,不执行
-  #endif
 
   // Return if the G-code buffer is empty
   if (ring_buffer.empty()) {
@@ -729,48 +580,9 @@ void GCodeQueue::advance() {
     }
   #endif
 
-  #if ENABLED(SDSUPPORT)
-
-    if (card.flag.saving) {
-      char * const cmd = ring_buffer.peek_next_command_string();
-      if (is_M29(cmd)) {
-        // M29 closes the file
-        card.closefile();
-        SERIAL_ECHOLNPGM(STR_FILE_SAVED);
-
-        #if !defined(__AVR__) || !defined(USBCON)
-          #if ENABLED(SERIAL_STATS_DROPPED_RX)
-            SERIAL_ECHOLNPGM("Dropped bytes: ", MYSERIAL1.dropped());
-          #endif
-          #if ENABLED(SERIAL_STATS_MAX_RX_QUEUED)
-            SERIAL_ECHOLNPGM("Max RX Queue Size: ", MYSERIAL1.rxMaxEnqueued());
-          #endif
-        #endif
-
-        ok_to_send();
-      }
-      else {
-        // Write the string from the read buffer to SD
-        card.write_command(cmd);
-        if (card.flag.logging)
-          gcode.process_next_command(); // The card is saving because it's logging
-        else
-          ok_to_send();
-      }
-    }
-    else
-      gcode.process_next_command();
-
-  #else
-
-    gcode.process_next_command();
-
-  #endif // SDSUPPORT
+  gcode.process_next_command();
 
   // The queue may be reset by a command handler or by code invoked by idle() within a handler
-  #if TRONXY_UI
-  if(ring_buffer.length) //只有当length不为0时,方可递减
-  #endif
   ring_buffer.advance_pos(ring_buffer.index_r, -1);
 }
 

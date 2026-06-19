@@ -415,8 +415,6 @@
   #include "lpc1769/pins_AZTEEG_X5_GT.h"        // LPC1769                                env:LPC1769
 #elif MB(AZTEEG_X5_MINI)
   #include "lpc1769/pins_AZTEEG_X5_MINI.h"      // LPC1769                                env:LPC1769
-#elif MB(AZTEEG_X5_MINI_WIFI)
-  #include "lpc1769/pins_AZTEEG_X5_MINI_WIFI.h" // LPC1769                                env:LPC1769
 #elif MB(COHESION3D_REMIX)
   #include "lpc1769/pins_COHESION3D_REMIX.h"    // LPC1769                                env:LPC1769
 #elif MB(COHESION3D_MINI)
@@ -476,21 +474,11 @@
   #include "sam/pins_ADSK.h"                    // SAM3X8C                                env:DUE env:DUE_debug
 
 //
-// STM32 ARM Cortex-M0
-//
-#elif MB(MALYAN_M200_V2)
-  #include "stm32f0/pins_MALYAN_M200_V2.h"      // STM32F0                                env:STM32F070RB_malyan env:STM32F070CB_malyan
-#elif MB(MALYAN_M300)
-  #include "stm32f0/pins_MALYAN_M300.h"         // STM32F070                              env:malyan_M300
-
-//
 // STM32 ARM Cortex-M3
 //
 
 #elif MB(STM32F103RE)
   #include "stm32f1/pins_STM32F1R.h"            // STM32F103RE                            env:STM32F103RE env:STM32F103RE_maple
-#elif MB(MALYAN_M200)
-  #include "stm32f1/pins_MALYAN_M200.h"         // STM32F103CB                            env:STM32F103CB_malyan env:STM32F103CB_malyan_maple
 #elif MB(STM3R_MINI)
   #include "stm32f1/pins_STM3R_MINI.h"          // STM32F103VE?                           env:STM32F103VE env:STM32F103RE_maple
 #elif MB(GTM32_PRO_VB)

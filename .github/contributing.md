@@ -84,7 +84,6 @@ Include details about your configuration and environment:
 
 * **Which version of Marlin are you using?** Marlin's exact version and build date can be seen in the startup message when a host connects to Marlin, or in the LCD Info menu (if enabled).
 * **What kind of 3D Printer and electronics are you using**?
-* **What kind of add-ons (probe, filament sensor) do you have**?
 * **Include your Configuration files.** Make a ZIP file containing `Configuration.h` and `Configuration_adv.h` and drop it on your reply.
 
 ### Suggesting Features or Changes

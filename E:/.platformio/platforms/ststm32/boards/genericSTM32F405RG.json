@@ -2,11 +2,11 @@
   "build": {
     "core": "stm32",
     "cpu": "cortex-m4",
-    "extra_flags": "-DSTM32F4 -DSTM32F405xx -DSTM32F4xx",
+    "extra_flags": "-DSTM32F405xx -DSTM32F4xx",
     "f_cpu": "168000000L",
-    "mcu": "stm32f405rgt6",
+    "mcu": "stm32f405rg",
     "product_line": "STM32F405xx",
-    "variant": "STM32F4xx/F405RGT_F415RGT"
+    "variant": "Generic_F4x5RG"
   },
   "debug": {
     "jlink_device": "STM32F405RG",

@@ -28,7 +28,7 @@
  * Many generic silicone heat pads use the MGB18-104F39050L32 thermistor, applicable to various
  * wattages and voltages. This table is correct if this part is used. It's been optimized
  * to provide good granularity in the 60-110C range, good for PLA and ABS. For higher temperature
- * filament (e.g., nylon) uncomment HIGH_TEMP_RANGE_75 for increased accuracy. If higher
+ * fila ment (e.g., nylon) uncomment HIGH_TEMP_RANGE_75 for increased accuracy. If higher
  * temperatures aren't used it can improve performance slightly to leave it commented out.
  */
 

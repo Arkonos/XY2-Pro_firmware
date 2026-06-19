@@ -27,10 +27,6 @@
 
 #include "../../inc/MarlinConfigPre.h"
 
-#if ENABLED(LASER_SYNCHRONOUS_M106_M107)
-  #include "../../module/planner.h"
-#endif
-
 ////////////////////////////////////////////
 ///////////// Base Menu Items //////////////
 ////////////////////////////////////////////
@@ -533,42 +529,3 @@ class MenuItem_bool : public MenuEditItemBase {
 #if ENABLED(LCD_BED_TRAMMING)
   void _lcd_level_bed_corners();
 #endif
-
-#if HAS_FAN
-
-  #include "../../module/temperature.h"
-
-  inline void on_fan_update() {
-    thermalManager.set_fan_speed(MenuItemBase::itemIndex, editable.uint8);
-    TERN_(LASER_SYNCHRONOUS_M106_M107, planner.buffer_sync_block(BLOCK_BIT_SYNC_FANS));
-  }
-
-  #if ENABLED(EXTRA_FAN_SPEED)
-    #define EDIT_EXTRA_FAN_SPEED(V...) EDIT_ITEM_FAST_N(V)
-  #else
-    #define EDIT_EXTRA_FAN_SPEED(...)
-  #endif
-
-  #define _FAN_EDIT_ITEMS(F,L) do{ \
-    editable.uint8 = thermalManager.fan_speed[F]; \
-    EDIT_ITEM_FAST_N(percent, F, MSG_##L, &editable.uint8, 0, 255, on_fan_update); \
-    EDIT_EXTRA_FAN_SPEED(percent, F, MSG_EXTRA_##L, &thermalManager.extra_fan_speed[F].speed, 3, 255); \
-  }while(0)
-
-  #if FAN_COUNT > 1
-    #define FAN_EDIT_ITEMS(F) _FAN_EDIT_ITEMS(F,FAN_SPEED_N)
-  #endif
-
-  #define SNFAN(N) (ENABLED(SINGLENOZZLE_STANDBY_FAN) && !HAS_FAN##N && EXTRUDERS > N)
-
-  #if SNFAN(1) || SNFAN(2) || SNFAN(3) || SNFAN(4) || SNFAN(5) || SNFAN(6) || SNFAN(7)
-    #define DEFINE_SINGLENOZZLE_ITEM() \
-      auto singlenozzle_item = [&](const uint8_t f) { \
-        editable.uint8 = thermalManager.singlenozzle_fan_speed[f]; \
-        EDIT_ITEM_FAST_N(percent, f, MSG_STORED_FAN_N, &editable.uint8, 0, 255, on_fan_update); \
-      }
-  #else
-    #define DEFINE_SINGLENOZZLE_ITEM() NOOP
-  #endif
-
-#endif // HAS_FAN

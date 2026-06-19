@@ -93,51 +93,16 @@ Stepper stepper; // Singleton
 
 #include "../lcd/marlinui.h"
 #include "../gcode/queue.h"
-#include "../sd/cardreader.h"
 #include "../MarlinCore.h"
 #include "../HAL/shared/Delay.h"
-#if TRONXY_UI
-#include "muyu.h"
-#endif
 
-#if ENABLED(BD_SENSOR)
-  #include "../feature/bedlevel/bdl/bdl.h"
-#endif
 
 #if ENABLED(INTEGRATED_BABYSTEPPING)
   #include "../feature/babystep.h"
 #endif
 
-#if MB(ALLIGATOR)
-  #include "../feature/dac/dac_dac084s085.h"
-#endif
-
 #if HAS_MOTOR_CURRENT_SPI
   #include <SPI.h>
-#endif
-
-#if ENABLED(MIXING_EXTRUDER)
-  #include "../feature/mixing.h"
-#endif
-
-#if HAS_FILAMENT_RUNOUT_DISTANCE
-  #include "../feature/runout.h"
-#endif
-
-#if ENABLED(AUTO_POWER_CONTROL)
-  #include "../feature/power.h"
-#endif
-
-#if ENABLED(POWER_LOSS_RECOVERY)
-  #include "../feature/powerloss.h"
-#endif
-
-#if HAS_CUTTER
-  #include "../feature/spindle_laser.h"
-#endif
-
-#if ENABLED(EXTENSIBLE_UI)
-  #include "../lcd/extui/ui_api.h"
 #endif
 
 // public:
@@ -162,11 +127,6 @@ axis_bits_t Stepper::last_direction_bits, // = 0
             Stepper::axis_did_move; // = 0
 
 bool Stepper::abort_current_block;
-
-#if DISABLED(MIXING_EXTRUDER) && HAS_MULTI_EXTRUDER
-  uint8_t Stepper::last_moved_extruder = 0xFF;
-#endif
-
 #if ENABLED(X_DUAL_ENDSTOPS)
   bool Stepper::locked_X_motor = false, Stepper::locked_X2_motor = false;
 #endif
@@ -201,12 +161,6 @@ uint32_t Stepper::advance_divisor = 0,
          Stepper::decelerate_after,          // The count at which to start decelerating
          Stepper::step_event_count;          // The total event count for the current block
 
-#if EITHER(HAS_MULTI_EXTRUDER, MIXING_EXTRUDER)
-  uint8_t Stepper::stepper_extruder;
-#else
-  constexpr uint8_t Stepper::stepper_extruder;
-#endif
-
 #if ENABLED(S_CURVE_ACCELERATION)
   int32_t __attribute__((used)) Stepper::bezier_A __asm__("bezier_A");    // A coefficient in Bézier speed curve with alias for assembler
   int32_t __attribute__((used)) Stepper::bezier_B __asm__("bezier_B");    // B coefficient in Bézier speed curve with alias for assembler
@@ -217,14 +171,6 @@ uint32_t Stepper::advance_divisor = 0,
     bool __attribute__((used)) Stepper::A_negative __asm__("A_negative"); // If A coefficient was negative
   #endif
   bool Stepper::bezier_2nd_half;    // =false If Bézier curve has been initialized or not
-#endif
-
-#if ENABLED(LIN_ADVANCE)
-  uint32_t Stepper::nextAdvanceISR = LA_ADV_NEVER,
-           Stepper::la_interval = LA_ADV_NEVER;
-  int32_t  Stepper::la_delta_error = 0,
-           Stepper::la_dividend = 0,
-           Stepper::la_advance_steps = 0;
 #endif
 
 #if ENABLED(INTEGRATED_BABYSTEPPING)
@@ -342,120 +288,16 @@ xyze_int8_t Stepper::count_direction{0};
     A##4_STEP_WRITE(V);                           \
   }
 
-#if HAS_DUAL_X_STEPPERS
-  #define X_APPLY_DIR(v,Q) do{ X_DIR_WRITE(v); X2_DIR_WRITE((v) ^ ENABLED(INVERT_X2_VS_X_DIR)); }while(0)
-  #if ENABLED(X_DUAL_ENDSTOPS)
-    #define X_APPLY_STEP(v,Q) DUAL_ENDSTOP_APPLY_STEP(X,v)
-  #else
-    #define X_APPLY_STEP(v,Q) do{ X_STEP_WRITE(v); X2_STEP_WRITE(v); }while(0)
-  #endif
-#elif ENABLED(DUAL_X_CARRIAGE)
-  #define X_APPLY_DIR(v,ALWAYS) do{ \
-    if (extruder_duplication_enabled || ALWAYS) { X_DIR_WRITE(v); X2_DIR_WRITE((v) ^ idex_mirrored_mode); } \
-    else if (last_moved_extruder) X2_DIR_WRITE(v); else X_DIR_WRITE(v); \
-  }while(0)
-  #define X_APPLY_STEP(v,ALWAYS) do{ \
-    if (extruder_duplication_enabled || ALWAYS) { X_STEP_WRITE(v); X2_STEP_WRITE(v); } \
-    else if (last_moved_extruder) X2_STEP_WRITE(v); else X_STEP_WRITE(v); \
-  }while(0)
-#else
-  #define X_APPLY_DIR(v,Q) X_DIR_WRITE(v)
-  #define X_APPLY_STEP(v,Q) X_STEP_WRITE(v)
-#endif
 
-#if HAS_DUAL_Y_STEPPERS
-  #define Y_APPLY_DIR(v,Q) do{ Y_DIR_WRITE(v); Y2_DIR_WRITE((v) ^ ENABLED(INVERT_Y2_VS_Y_DIR)); }while(0)
-  #if ENABLED(Y_DUAL_ENDSTOPS)
-    #define Y_APPLY_STEP(v,Q) DUAL_ENDSTOP_APPLY_STEP(Y,v)
-  #else
-    #define Y_APPLY_STEP(v,Q) do{ Y_STEP_WRITE(v); Y2_STEP_WRITE(v); }while(0)
-  #endif
-#elif HAS_Y_AXIS
-  #if ENABLED(MARKFORGED_XY) && ENABLED(DUAL_X_CARRIAGE)
-    #define Y_APPLY_DIR(v,Q) do { \
-      Y_DIR_WRITE(v);\
-      if (!extruder_duplication_enabled) { \
-        if(last_moved_extruder)X_DIR_WRITE(!v); \
-        else X2_DIR_WRITE(v); \
-      } \
-    }while(0)
-    #define Y_APPLY_STEP(v,Q) do { \
-      Y_STEP_WRITE(v);\
-      if (!extruder_duplication_enabled) { \
-        if(last_moved_extruder)X_STEP_WRITE(v); \
-        else X2_STEP_WRITE(v); \
-      } \
-    }while(0)
-  #else
-    #define Y_APPLY_DIR(v,Q) Y_DIR_WRITE(v)
-    #define Y_APPLY_STEP(v,Q) Y_STEP_WRITE(v)
-  #endif
-#endif
+#define X_APPLY_DIR(v,Q) X_DIR_WRITE(v)
+#define X_APPLY_STEP(v,Q) X_STEP_WRITE(v)
 
-#if NUM_Z_STEPPERS == 4
-  #define Z_APPLY_DIR(v,Q) do{ \
-    Z_DIR_WRITE(v); Z2_DIR_WRITE((v) ^ ENABLED(INVERT_Z2_VS_Z_DIR)); \
-    Z3_DIR_WRITE((v) ^ ENABLED(INVERT_Z3_VS_Z_DIR)); Z4_DIR_WRITE((v) ^ ENABLED(INVERT_Z4_VS_Z_DIR)); \
-  }while(0)
-  #if ENABLED(Z_MULTI_ENDSTOPS)
-    #define Z_APPLY_STEP(v,Q) QUAD_ENDSTOP_APPLY_STEP(Z,v)
-  #elif ENABLED(Z_STEPPER_AUTO_ALIGN)
-    #define Z_APPLY_STEP(v,Q) QUAD_SEPARATE_APPLY_STEP(Z,v)
-  #else
-    #define Z_APPLY_STEP(v,Q) do{ Z_STEP_WRITE(v); Z2_STEP_WRITE(v); Z3_STEP_WRITE(v); Z4_STEP_WRITE(v); }while(0)
-  #endif
-#elif NUM_Z_STEPPERS == 3
-  #define Z_APPLY_DIR(v,Q) do{ \
-    Z_DIR_WRITE(v); Z2_DIR_WRITE((v) ^ ENABLED(INVERT_Z2_VS_Z_DIR)); Z3_DIR_WRITE((v) ^ ENABLED(INVERT_Z3_VS_Z_DIR)); \
-  }while(0)
-  #if ENABLED(Z_MULTI_ENDSTOPS)
-    #define Z_APPLY_STEP(v,Q) TRIPLE_ENDSTOP_APPLY_STEP(Z,v)
-  #elif ENABLED(Z_STEPPER_AUTO_ALIGN)
-    #define Z_APPLY_STEP(v,Q) TRIPLE_SEPARATE_APPLY_STEP(Z,v)
-  #else
-    #define Z_APPLY_STEP(v,Q) do{ Z_STEP_WRITE(v); Z2_STEP_WRITE(v); Z3_STEP_WRITE(v); }while(0)
-  #endif
-#elif NUM_Z_STEPPERS == 2
-  #define Z_APPLY_DIR(v,Q) do{ Z_DIR_WRITE(v); Z2_DIR_WRITE((v) ^ ENABLED(INVERT_Z2_VS_Z_DIR)); }while(0)
-  #if ENABLED(Z_MULTI_ENDSTOPS)
-    #define Z_APPLY_STEP(v,Q) DUAL_ENDSTOP_APPLY_STEP(Z,v)
-  #elif ENABLED(Z_STEPPER_AUTO_ALIGN)
-    #define Z_APPLY_STEP(v,Q) DUAL_SEPARATE_APPLY_STEP(Z,v)
-  #else
-    #define Z_APPLY_STEP(v,Q) do{ Z_STEP_WRITE(v); Z2_STEP_WRITE(v); }while(0)
-  #endif
-#elif HAS_Z_AXIS
+#define Y_APPLY_DIR(v,Q) Y_DIR_WRITE(v)
+#define Y_APPLY_STEP(v,Q) Y_STEP_WRITE(v)
+
+#if HAS_Z_AXIS
   #define Z_APPLY_DIR(v,Q) Z_DIR_WRITE(v)
   #define Z_APPLY_STEP(v,Q) Z_STEP_WRITE(v)
-#endif
-
-#if HAS_I_AXIS
-  #define I_APPLY_DIR(v,Q) I_DIR_WRITE(v)
-  #define I_APPLY_STEP(v,Q) I_STEP_WRITE(v)
-#endif
-#if HAS_J_AXIS
-  #define J_APPLY_DIR(v,Q) J_DIR_WRITE(v)
-  #define J_APPLY_STEP(v,Q) J_STEP_WRITE(v)
-#endif
-#if HAS_K_AXIS
-  #define K_APPLY_DIR(v,Q) K_DIR_WRITE(v)
-  #define K_APPLY_STEP(v,Q) K_STEP_WRITE(v)
-#endif
-#if HAS_U_AXIS
-  #define U_APPLY_DIR(v,Q) U_DIR_WRITE(v)
-  #define U_APPLY_STEP(v,Q) U_STEP_WRITE(v)
-#endif
-#if HAS_V_AXIS
-  #define V_APPLY_DIR(v,Q) V_DIR_WRITE(v)
-  #define V_APPLY_STEP(v,Q) V_STEP_WRITE(v)
-#endif
-#if HAS_W_AXIS
-  #define W_APPLY_DIR(v,Q) W_DIR_WRITE(v)
-  #define W_APPLY_STEP(v,Q) W_STEP_WRITE(v)
-#endif
-
-#if DISABLED(MIXING_EXTRUDER)
-  #define E_APPLY_STEP(v,Q) E_STEP_WRITE(stepper_extruder, v)
 #endif
 
 #define CYCLES_TO_NS(CYC) (1000UL * (CYC) / ((F_CPU) / 1000000))
@@ -515,58 +357,18 @@ bool Stepper::disable_axis(const AxisEnum axis) {
   return can_disable;
 }
 
-#if HAS_EXTRUDERS
-
-  void Stepper::enable_extruder(E_TERN_(const uint8_t eindex)) {
-    IF_DISABLED(HAS_MULTI_EXTRUDER, constexpr uint8_t eindex = 0);
-    #define _CASE_ENA_E(N) case N: ENABLE_AXIS_E##N(); mark_axis_enabled(E_AXIS E_OPTARG(eindex)); break;
-    switch (eindex) {
-      REPEAT(E_STEPPERS, _CASE_ENA_E)
-    }
-  }
-
-  bool Stepper::disable_extruder(E_TERN_(const uint8_t eindex/*=0*/)) {
-    IF_DISABLED(HAS_MULTI_EXTRUDER, constexpr uint8_t eindex = 0);
-    mark_axis_disabled(E_AXIS E_OPTARG(eindex));
-    const bool can_disable = can_axis_disable(E_AXIS E_OPTARG(eindex));
-    if (can_disable) {
-      #define _CASE_DIS_E(N) case N: DISABLE_AXIS_E##N(); break;
-      switch (eindex) { REPEAT(E_STEPPERS, _CASE_DIS_E) }
-    }
-    return can_disable;
-  }
-
-  void Stepper::enable_e_steppers() {
-    #define _ENA_E(N) ENABLE_EXTRUDER(N);
-    REPEAT(EXTRUDERS, _ENA_E)
-  }
-
-  void Stepper::disable_e_steppers() {
-    #define _DIS_E(N) DISABLE_EXTRUDER(N);
-    REPEAT(EXTRUDERS, _DIS_E)
-  }
-
-#endif
-
 void Stepper::enable_all_steppers() {
-  TERN_(AUTO_POWER_CONTROL, powerManager.power_on());
   NUM_AXIS_CODE(
-    enable_axis(X_AXIS), enable_axis(Y_AXIS), enable_axis(Z_AXIS),
-    enable_axis(I_AXIS), enable_axis(J_AXIS), enable_axis(K_AXIS),
-    enable_axis(U_AXIS), enable_axis(V_AXIS), enable_axis(W_AXIS)
+    enable_axis(X_AXIS), enable_axis(Y_AXIS), enable_axis(Z_AXIS)
   );
-  enable_e_steppers();
 
   TERN_(EXTENSIBLE_UI, ExtUI::onSteppersEnabled());
 }
 
 void Stepper::disable_all_steppers() {
   NUM_AXIS_CODE(
-    disable_axis(X_AXIS), disable_axis(Y_AXIS), disable_axis(Z_AXIS),
-    disable_axis(I_AXIS), disable_axis(J_AXIS), disable_axis(K_AXIS),
-    disable_axis(U_AXIS), disable_axis(V_AXIS), disable_axis(W_AXIS)
+    disable_axis(X_AXIS), disable_axis(Y_AXIS), disable_axis(Z_AXIS)
   );
-  disable_e_steppers();
 
   TERN_(EXTENSIBLE_UI, ExtUI::onSteppersDisabled());
 }
@@ -601,28 +403,6 @@ void Stepper::set_directions() {
   TERN_(HAS_U_DIR, SET_STEP_DIR(U));
   TERN_(HAS_V_DIR, SET_STEP_DIR(V));
   TERN_(HAS_W_DIR, SET_STEP_DIR(W));
-
-  #if ENABLED(MIXING_EXTRUDER)
-     // Because this is valid for the whole block we don't know
-     // what E steppers will step. Likely all. Set all.
-    if (motor_direction(E_AXIS)) {
-      MIXER_STEPPER_LOOP(j) REV_E_DIR(j);
-      count_direction.e = -1;
-    }
-    else {
-      MIXER_STEPPER_LOOP(j) NORM_E_DIR(j);
-      count_direction.e = 1;
-    }
-  #elif HAS_EXTRUDERS
-    if (motor_direction(E_AXIS)) {
-      REV_E_DIR(stepper_extruder);
-      count_direction.e = -1;
-    }
-    else {
-      NORM_E_DIR(stepper_extruder);
-      count_direction.e = 1;
-    }
-  #endif
 
   DIR_WAIT_AFTER();
 }
@@ -1721,7 +1501,6 @@ void Stepper::pulse_phase_isr() {
           PAGE_PULSE_PREP(X);
           PAGE_PULSE_PREP(Y);
           PAGE_PULSE_PREP(Z);
-          TERN_(HAS_EXTRUDERS, PAGE_PULSE_PREP(E));
 
           page_step_state.segment_steps++;
 
@@ -1754,7 +1533,6 @@ void Stepper::pulse_phase_isr() {
           PAGE_PULSE_PREP(X);
           PAGE_PULSE_PREP(Y);
           PAGE_PULSE_PREP(Z);
-          TERN_(HAS_EXTRUDERS, PAGE_PULSE_PREP(E));
 
           page_step_state.segment_steps++;
 
@@ -2013,7 +1791,6 @@ uint32_t Stepper::block_phase_isr() {
           PAGE_SEGMENT_UPDATE_POS(E);
         }
       #endif
-      TERN_(HAS_FILAMENT_RUNOUT_DISTANCE, runout.block_completed(current_block));
       discard_current_block();
     }
     else {
@@ -2037,39 +1814,6 @@ uint32_t Stepper::block_phase_isr() {
         // step_rate to timer interval and steps per stepper isr
         interval = calc_timer_interval(acc_step_rate << oversampling_factor, steps_per_isr);
         acceleration_time += interval;
-
-        #if ENABLED(LIN_ADVANCE)
-          if (current_block->la_advance_rate) {
-            const uint32_t la_step_rate = la_advance_steps < current_block->max_adv_steps ? current_block->la_advance_rate : 0;
-            la_interval = calc_timer_interval(acc_step_rate + la_step_rate) << current_block->la_scaling;
-          }
-        #endif
-
-        /**
-         * Adjust Laser Power - Accelerating
-         *
-         *  isPowered - True when a move is powered.
-         *  isEnabled - laser power is active.
-         *
-         * Laser power variables are calulated and stored in this block by the planner code.
-         *  trap_ramp_active_pwr - the active power in this block across accel or decel trap steps.
-         *  trap_ramp_entry_incr - holds the precalculated value to increase the current power per accel step.
-         *
-         * Apply the starting active power and then increase power per step by the trap_ramp_entry_incr value if positive.
-         */
-
-        #if ENABLED(LASER_POWER_TRAP)
-          if (cutter.cutter_mode == CUTTER_MODE_CONTINUOUS) {
-            if (planner.laser_inline.status.isPowered && planner.laser_inline.status.isEnabled) {
-              if (current_block->laser.trap_ramp_entry_incr > 0) {
-                cutter.apply_power(current_block->laser.trap_ramp_active_pwr);
-                current_block->laser.trap_ramp_active_pwr += current_block->laser.trap_ramp_entry_incr;
-              }
-            }
-            // Not a powered move.
-            else cutter.apply_power(0);
-          }
-        #endif
       }
       // Are we in Deceleration phase ?
       else if (step_events_completed > decelerate_after) {
@@ -2107,58 +1851,6 @@ uint32_t Stepper::block_phase_isr() {
         // step_rate to timer interval and steps per stepper isr
         interval = calc_timer_interval(step_rate << oversampling_factor, steps_per_isr);
         deceleration_time += interval;
-
-        #if ENABLED(LIN_ADVANCE)
-          if (current_block->la_advance_rate) {
-            const uint32_t la_step_rate = la_advance_steps > current_block->final_adv_steps ? current_block->la_advance_rate : 0;
-            if (la_step_rate != step_rate) {
-              bool reverse_e = la_step_rate > step_rate;
-              la_interval = calc_timer_interval(reverse_e ? la_step_rate - step_rate : step_rate - la_step_rate) << current_block->la_scaling;
-
-              if (reverse_e != motor_direction(E_AXIS)) {
-                TBI(last_direction_bits, E_AXIS);
-                count_direction.e = -count_direction.e;
-
-                DIR_WAIT_BEFORE();
-
-                if (reverse_e) {
-                  #if ENABLED(MIXING_EXTRUDER)
-                    MIXER_STEPPER_LOOP(j) REV_E_DIR(j);
-                  #else
-                    REV_E_DIR(stepper_extruder);
-                  #endif
-                }
-                else {
-                  #if ENABLED(MIXING_EXTRUDER)
-                    MIXER_STEPPER_LOOP(j) NORM_E_DIR(j);
-                  #else
-                    NORM_E_DIR(stepper_extruder);
-                  #endif
-                }
-
-                DIR_WAIT_AFTER();
-              }
-            }
-          }
-        #endif // LIN_ADVANCE
-
-        /*
-         * Adjust Laser Power - Decelerating
-         * trap_ramp_entry_decr - holds the precalculated value to decrease the current power per decel step.
-         */
-        #if ENABLED(LASER_POWER_TRAP)
-          if (cutter.cutter_mode == CUTTER_MODE_CONTINUOUS) {
-            if (planner.laser_inline.status.isPowered && planner.laser_inline.status.isEnabled) {
-              if (current_block->laser.trap_ramp_exit_decr > 0) {
-                current_block->laser.trap_ramp_active_pwr -= current_block->laser.trap_ramp_exit_decr;
-                cutter.apply_power(current_block->laser.trap_ramp_active_pwr);
-              }
-              // Not a powered move.
-              else cutter.apply_power(0);
-            }
-          }
-        #endif
-
       }
       else {  // Must be in cruise phase otherwise
 
@@ -2177,47 +1869,7 @@ uint32_t Stepper::block_phase_isr() {
         interval = ticks_nominal;
       }
 
-      /**
-       * Adjust Laser Power - Cruise
-       * power - direct or floor adjusted active laser power.
-       */
-      #if ENABLED(LASER_POWER_TRAP)
-        if (cutter.cutter_mode == CUTTER_MODE_CONTINUOUS) {
-          if (step_events_completed + 1 == accelerate_until) {
-            if (planner.laser_inline.status.isPowered && planner.laser_inline.status.isEnabled) {
-              if (current_block->laser.trap_ramp_entry_incr > 0) {
-                current_block->laser.trap_ramp_active_pwr = current_block->laser.power;
-                cutter.apply_power(current_block->laser.power);
-              }
-            }
-            // Not a powered move.
-            else cutter.apply_power(0);
-          }
-        }
-      #endif
     }
-
-    #if ENABLED(LASER_FEATURE)
-      /**
-       * CUTTER_MODE_DYNAMIC is experimental and developing.
-       * Super-fast method to dynamically adjust the laser power OCR value based on the input feedrate in mm-per-minute.
-       * TODO: Set up Min/Max OCR offsets to allow tuning and scaling of various lasers.
-       * TODO: Integrate accel/decel +-rate into the dynamic laser power calc.
-       */
-      if (cutter.cutter_mode == CUTTER_MODE_DYNAMIC
-        && planner.laser_inline.status.isPowered                  // isPowered flag set on any parsed G1, G2, G3, or G5 move; cleared on any others.
-        && cutter.last_block_power != current_block->laser.power  // Prevent constant update without change
-      ) {
-        cutter.apply_power(current_block->laser.power);
-        cutter.last_block_power = current_block->laser.power;
-      }
-    #endif
-  }
-  else { // !current_block
-    #if ENABLED(LASER_FEATURE)
-      if (cutter.cutter_mode == CUTTER_MODE_DYNAMIC)
-        cutter.apply_power(0);  // No movement in dynamic mode so turn Laser off
-    #endif
   }
 
   // If there is no current block at this point, attempt to pop one from the buffer
@@ -2230,23 +1882,8 @@ uint32_t Stepper::block_phase_isr() {
       // Sync block? Sync the stepper counts or fan speeds and return
       while (current_block->is_sync()) {
 
-        #if ENABLED(LASER_POWER_SYNC)
-          if (cutter.cutter_mode == CUTTER_MODE_CONTINUOUS) {
-            if (current_block->is_pwr_sync()) {
-              planner.laser_inline.status.isSyncPower = true;
-              cutter.apply_power(current_block->laser.power);
-            }
-          }
-        #endif
-
-        TERN_(LASER_SYNCHRONOUS_M106_M107, if (current_block->is_fan_sync()) planner.sync_fan_speeds(current_block->fan_speed));
-
         if (!(current_block->is_fan_sync() || current_block->is_pwr_sync())) {
-          #if ENABLED(MARKFORGED_XY) && ENABLED(DUAL_X_CARRIAGE) 
-            _set_position(current_block->position, current_block->extruder);
-          #else
-            _set_position(current_block->position);
-          #endif
+          _set_position(current_block->position);
         }
 
         discard_current_block();
@@ -2255,25 +1892,6 @@ uint32_t Stepper::block_phase_isr() {
         if (!(current_block = planner.get_current_block()))
           return interval; // No more queued movements!
       }
-
-      // For non-inline cutter, grossly apply power
-      #if HAS_CUTTER
-        if (cutter.cutter_mode == CUTTER_MODE_STANDARD) {
-          cutter.apply_power(current_block->cutter_power);
-        }
-      #endif
-
-      #if ENABLED(POWER_LOSS_RECOVERY)
-        #if TRONXY_UI
-        if(my_print_status == PRINT_RUNNING) {
-          recovery.info.sdpos = current_block->sdpos;
-          recovery.info.current_position = current_block->start_position;
-        }
-        #else
-        recovery.info.sdpos = current_block->sdpos;
-        recovery.info.current_position = current_block->start_position;
-        #endif
-      #endif
 
       #if ENABLED(DIRECT_STEPPING)
         if (current_block->is_page()) {
@@ -2414,43 +2032,6 @@ uint32_t Stepper::block_phase_isr() {
 
       E_TERN_(stepper_extruder = current_block->extruder);
 
-      // Initialize the trapezoid generator from the current block.
-      #if ENABLED(LIN_ADVANCE)
-        #if DISABLED(MIXING_EXTRUDER) && E_STEPPERS > 1
-          // If the now active extruder wasn't in use during the last move, its pressure is most likely gone.
-          if (stepper_extruder != last_moved_extruder) la_advance_steps = 0;
-        #endif
-        if (current_block->la_advance_rate) {
-          // apply LA scaling and discount the effect of frequency scaling
-          la_dividend = (advance_dividend.e << current_block->la_scaling) << oversampling;
-        }
-      #endif
-
-      if ( ENABLED(DUAL_X_CARRIAGE) // TODO: Find out why this fixes "jittery" small circles
-        || current_block->direction_bits != last_direction_bits
-        || TERN(MIXING_EXTRUDER, false, stepper_extruder != last_moved_extruder)
-      ) {
-        E_TERN_(last_moved_extruder = stepper_extruder);
-        set_directions(current_block->direction_bits);
-      }
-
-      #if ENABLED(LASER_FEATURE)
-        if (cutter.cutter_mode == CUTTER_MODE_CONTINUOUS) {           // Planner controls the laser
-          if (planner.laser_inline.status.isSyncPower)
-            // If the previous block was a M3 sync power then skip the trap power init otherwise it will 0 the sync power.
-            planner.laser_inline.status.isSyncPower = false;          // Clear the flag to process subsequent trap calc's.
-          else if (current_block->laser.status.isEnabled) {
-            #if ENABLED(LASER_POWER_TRAP)
-              TERN_(DEBUG_LASER_TRAP, SERIAL_ECHO_MSG("InitTrapPwr:",current_block->laser.trap_ramp_active_pwr));
-              cutter.apply_power(current_block->laser.status.isPowered ? current_block->laser.trap_ramp_active_pwr : 0);
-            #else
-              TERN_(DEBUG_CUTTER_POWER, SERIAL_ECHO_MSG("InlinePwr:",current_block->laser.power));
-              cutter.apply_power(current_block->laser.status.isPowered ? current_block->laser.power : 0);
-            #endif
-          }
-        }
-      #endif // LASER_FEATURE
-
       // If the endstop is already pressed, endstop interrupts won't invoke
       // endstop_triggered and the move will grind. So check here for a
       // triggered endstop, which marks the block for discard on the next ISR.
@@ -2574,7 +2155,7 @@ void Stepper::init() {
   #if MB(ALLIGATOR)
     const float motor_current[] = MOTOR_CURRENT;
     unsigned int digipot_motor = 0;
-    LOOP_L_N(i, 3 + EXTRUDERS) {
+    LOOP_L_N(i, 3) {
       digipot_motor = 255 * (motor_current[i] / 2.5);
       dac084s085::setValue(i, digipot_motor);
     }
@@ -2588,9 +2169,6 @@ void Stepper::init() {
   TERN_(HAS_X2_DIR, X2_DIR_INIT());
   #if HAS_Y_DIR
     Y_DIR_INIT();
-    #if BOTH(HAS_DUAL_Y_STEPPERS, HAS_Y2_DIR)
-      Y2_DIR_INIT();
-    #endif
   #endif
   #if HAS_Z_DIR
     Z_DIR_INIT();
@@ -2659,10 +2237,6 @@ void Stepper::init() {
   #if HAS_Y_ENABLE
     Y_ENABLE_INIT();
     if (!Y_ENABLE_ON) Y_ENABLE_WRITE(HIGH);
-    #if BOTH(HAS_DUAL_Y_STEPPERS, HAS_Y2_ENABLE)
-      Y2_ENABLE_INIT();
-      if (!Y_ENABLE_ON) Y2_ENABLE_WRITE(HIGH);
-    #endif
   #endif
   #if HAS_Z_ENABLE
     Z_ENABLE_INIT();
@@ -2860,12 +2434,7 @@ void Stepper::init() {
  * This allows get_axis_position_mm to correctly
  * derive the current XYZE position later on.
  */
-#if ENABLED(MARKFORGED_XY) && ENABLED(DUAL_X_CARRIAGE) 
-void Stepper::_set_position(const abce_long_t &spos, uint8_t e) {
-  (void)e;
-#else
 void Stepper::_set_position(const abce_long_t &spos) {
-#endif
   #if ANY(IS_CORE, MARKFORGED_XY, MARKFORGED_YX)
     #if CORE_IS_XY
       // corexy positioning
@@ -2878,12 +2447,7 @@ void Stepper::_set_position(const abce_long_t &spos) {
       // coreyz planning
       count_position.set(spos.a, spos.b + spos.c, CORESIGN(spos.b - spos.c));
     #elif ENABLED(MARKFORGED_XY)
-      #if ENABLED(DUAL_X_CARRIAGE) 
-      if(e)count_position.set(spos.a - spos.b, spos.b, spos.c);
-      else count_position.set(spos.a + spos.b, spos.b, spos.c);
-      #else
       count_position.set(spos.a - spos.b, spos.b, spos.c);
-      #endif
     #elif ENABLED(MARKFORGED_YX)
       count_position.set(spos.a, spos.b - spos.a, spos.c);
     #endif
@@ -2895,7 +2459,6 @@ void Stepper::_set_position(const abce_long_t &spos) {
       count_position.v = spos.v,
       count_position.w = spos.w
     );
-    TERN_(HAS_EXTRUDERS, count_position.e = spos.e);
   #else
     // default non-h-bot planning
     count_position = spos;
@@ -2922,21 +2485,13 @@ int32_t Stepper::position(const AxisEnum axis) {
 }
 
 // Set the current position in steps
-#if ENABLED(MARKFORGED_XY) && ENABLED(DUAL_X_CARRIAGE) 
-void Stepper::set_position(const xyze_long_t &spos, uint8_t e) {
-  planner.synchronize();
-  const bool was_enabled = suspend();
-  _set_position(spos, e);
-  if (was_enabled) wake_up();
-}
-#else
 void Stepper::set_position(const xyze_long_t &spos) {
   planner.synchronize();
   const bool was_enabled = suspend();
   _set_position(spos);
   if (was_enabled) wake_up();
 }
-#endif
+
 
 void Stepper::set_axis_position(const AxisEnum a, const int32_t &v) {
   planner.synchronize();
@@ -3006,16 +2561,6 @@ int32_t Stepper::triggered_position(const AxisEnum axis) {
   return v;
 }
 
-#if ANY(CORE_IS_XY, CORE_IS_XZ, MARKFORGED_XY, MARKFORGED_YX, IS_SCARA, DELTA)
-  #define SAYS_A 1
-#endif
-#if ANY(CORE_IS_XY, CORE_IS_YZ, MARKFORGED_XY, MARKFORGED_YX, IS_SCARA, DELTA)
-  #define SAYS_B 1
-#endif
-#if ANY(CORE_IS_XZ, CORE_IS_YZ, DELTA)
-  #define SAYS_C 1
-#endif
-
 void Stepper::report_a_position(const xyz_long_t &pos) {
   SERIAL_ECHOLNPGM_P(
     LIST_N(DOUBLE(NUM_AXES),
@@ -3061,11 +2606,7 @@ void Stepper::report_positions() {
     #define STEP_PULSE_CYCLES 0
   #endif
 
-  #if ENABLED(DELTA)
-    #define CYCLES_EATEN_BABYSTEP (2 * 15)
-  #else
-    #define CYCLES_EATEN_BABYSTEP 0
-  #endif
+  #define CYCLES_EATEN_BABYSTEP 0
 
   #if CYCLES_EATEN_BABYSTEP < STEP_PULSE_CYCLES
     #define EXTRA_CYCLES_BABYSTEP (STEP_PULSE_CYCLES - (CYCLES_EATEN_BABYSTEP))
@@ -3080,8 +2621,6 @@ void Stepper::report_positions() {
     #define _SAVE_START() NOOP
     #if EXTRA_CYCLES_BABYSTEP > 0
       #define _PULSE_WAIT() DELAY_NS(EXTRA_CYCLES_BABYSTEP * NANOSECONDS_PER_CYCLE)
-    #elif ENABLED(DELTA)
-      #define _PULSE_WAIT() DELAY_US(2);
     #elif STEP_PULSE_CYCLES > 0
       #define _PULSE_WAIT() NOOP
     #else

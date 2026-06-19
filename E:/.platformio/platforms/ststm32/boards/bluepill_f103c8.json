@@ -1,11 +1,8 @@
 {
   "build": {
-    "arduino": {
-      "variant_h": "variant_PILL_F103Cx.h"
-    },
     "core": "stm32",
     "cpu": "cortex-m3",
-    "extra_flags": "-DSTM32F1 -DSTM32F103xB",
+    "extra_flags": "-DSTM32F1 -DSTM32F103xB -DARDUINO_BLUEPILL_F103C8",
     "f_cpu": "72000000L",
     "hwids": [
       [
@@ -19,7 +16,7 @@
     ],
     "mcu": "stm32f103c8t6",
     "product_line": "STM32F103xB",
-    "variant": "STM32F1xx/F103C8T_F103CB(T-U)",
+    "variant": "PILL_F103XX",
     "zephyr": {
        "variant": "stm32_min_dev_blue"
     }
@@ -38,6 +35,7 @@
   },
   "frameworks": [
     "arduino",
+    "mbed",
     "cmsis",
     "libopencm3",
     "stm32cube",

@@ -39,28 +39,8 @@ enum EndstopEnum : char {
   _ES_ITEM(HAS_Y_MAX, Y_MAX)
   _ES_ITEM(HAS_Z_MIN, Z_MIN)
   _ES_ITEM(HAS_Z_MAX, Z_MAX)
-  _ES_ITEM(HAS_I_MIN, I_MIN)
-  _ES_ITEM(HAS_I_MAX, I_MAX)
-  _ES_ITEM(HAS_J_MIN, J_MIN)
-  _ES_ITEM(HAS_J_MAX, J_MAX)
-  _ES_ITEM(HAS_K_MIN, K_MIN)
-  _ES_ITEM(HAS_K_MAX, K_MAX)
-  _ES_ITEM(HAS_U_MIN, U_MIN)
-  _ES_ITEM(HAS_U_MAX, U_MAX)
-  _ES_ITEM(HAS_V_MIN, V_MIN)
-  _ES_ITEM(HAS_V_MAX, V_MAX)
-  _ES_ITEM(HAS_W_MIN, W_MIN)
-  _ES_ITEM(HAS_W_MAX, W_MAX)
 
   // Extra Endstops for XYZ
-  #if ENABLED(X_DUAL_ENDSTOPS)
-    _ES_ITEM(HAS_X_MIN, X2_MIN)
-    _ES_ITEM(HAS_X_MAX, X2_MAX)
-  #endif
-  #if ENABLED(Y_DUAL_ENDSTOPS)
-    _ES_ITEM(HAS_Y_MIN, Y2_MIN)
-    _ES_ITEM(HAS_Y_MAX, Y2_MAX)
-  #endif
   #if ENABLED(Z_MULTI_ENDSTOPS)
     _ES_ITEM(HAS_Z_MIN, Z2_MIN)
     _ES_ITEM(HAS_Z_MAX, Z2_MAX)
@@ -72,11 +52,6 @@ enum EndstopEnum : char {
       _ES_ITEM(HAS_Z_MIN, Z4_MIN)
       _ES_ITEM(HAS_Z_MAX, Z4_MAX)
     #endif
-  #endif
-
-  // Bed Probe state is distinct or shared with Z_MIN (i.e., when the probe is the only Z endstop)
-  #if !HAS_DELTA_SENSORLESS_PROBING
-    _ES_ITEM(HAS_BED_PROBE, Z_MIN_PROBE IF_DISABLED(USES_Z_MIN_PROBE_PIN, = Z_MIN))
   #endif
 
   // The total number of states
@@ -91,15 +66,6 @@ enum EndstopEnum : char {
   #endif
   #if HAS_Z_MIN || HAS_Z_MAX || HOMING_Z_WITH_PROBE
     , Z_ENDSTOP = TERN(Z_HOME_TO_MAX, Z_MAX, TERN(HOMING_Z_WITH_PROBE, Z_MIN_PROBE, Z_MIN))
-  #endif
-  #if HAS_I_MIN || HAS_I_MAX
-    , I_ENDSTOP = TERN(I_HOME_TO_MAX, I_MAX, I_MIN)
-  #endif
-  #if HAS_J_MIN || HAS_J_MAX
-    , J_ENDSTOP = TERN(J_HOME_TO_MAX, J_MAX, J_MIN)
-  #endif
-  #if HAS_K_MIN || HAS_K_MAX
-    , K_ENDSTOP = TERN(K_HOME_TO_MAX, K_MAX, K_MIN)
   #endif
 };
 

@@ -186,52 +186,16 @@ void Touch::touch(touch_control_t *control) {
       int8_t heater;
       heater = control->data;
       ui.clear_lcd();
-      #if HAS_HOTEND
-        if (heater >= 0) { // HotEnd
-          #if HOTENDS == 1
-            MenuItem_int3::action(GET_TEXT_F(MSG_NOZZLE), &thermalManager.temp_hotend[0].target, 0, thermalManager.hotend_max_target(0), []{ thermalManager.start_watching_hotend(0); });
-          #else
-            MenuItemBase::itemIndex = heater;
-            MenuItem_int3::action(GET_TEXT_F(MSG_NOZZLE_N), &thermalManager.temp_hotend[heater].target, 0, thermalManager.hotend_max_target(heater), []{ thermalManager.start_watching_hotend(MenuItemBase::itemIndex); });
-          #endif
-        }
-      #endif
       #if HAS_HEATED_BED
-        else if (heater == H_BED) {
+        if (heater == H_BED) {
           MenuItem_int3::action(GET_TEXT_F(MSG_BED), &thermalManager.temp_bed.target, 0, BED_MAX_TARGET, thermalManager.start_watching_bed);
-        }
-      #endif
-      #if HAS_HEATED_CHAMBER
-        else if (heater == H_CHAMBER) {
-          MenuItem_int3::action(GET_TEXT_F(MSG_CHAMBER), &thermalManager.temp_chamber.target, 0, CHAMBER_MAX_TARGET, thermalManager.start_watching_chamber);
-        }
-      #endif
-      #if HAS_COOLER
-        else if (heater == H_COOLER) {
-          MenuItem_int3::action(GET_TEXT_F(MSG_COOLER), &thermalManager.temp_cooler.target, 0, COOLER_MAX_TARGET, thermalManager.start_watching_cooler);
         }
       #endif
 
       break;
-    case FAN:
-      ui.clear_lcd();
-      static uint8_t fan, fan_speed;
-      fan = 0;
-      fan_speed = thermalManager.fan_speed[fan];
-      MenuItem_percent::action(GET_TEXT_F(MSG_FIRST_FAN_SPEED), &fan_speed, 0, 255, []{ thermalManager.set_fan_speed(fan, fan_speed); });
-      break;
     case FEEDRATE:
       ui.clear_lcd();
       MenuItem_int3::action(GET_TEXT_F(MSG_SPEED), &feedrate_percentage, 10, 999);
-      break;
-    case FLOWRATE:
-      ui.clear_lcd();
-      MenuItemBase::itemIndex = control->data;
-      #if EXTRUDERS == 1
-        MenuItem_int3::action(GET_TEXT_F(MSG_FLOW), &planner.flow_percentage[MenuItemBase::itemIndex], 10, 999, []{ planner.refresh_e_factor(MenuItemBase::itemIndex); });
-      #else
-        MenuItem_int3::action(GET_TEXT_F(MSG_FLOW_N), &planner.flow_percentage[MenuItemBase::itemIndex], 10, 999, []{ planner.refresh_e_factor(MenuItemBase::itemIndex); });
-      #endif
       break;
 
     #if ENABLED(AUTO_BED_LEVELING_UBL)

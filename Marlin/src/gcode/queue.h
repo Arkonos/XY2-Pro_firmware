@@ -250,10 +250,6 @@ private:
 
   static void get_serial_commands();
 
-  #if ENABLED(SDSUPPORT)
-    static void get_sdcard_commands();
-  #endif
-
   // Process the next "immediate" command (PROGMEM)
   static bool process_injected_command_P();
 

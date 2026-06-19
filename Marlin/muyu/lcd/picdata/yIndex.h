@@ -18,15 +18,10 @@
 #define POS_FIXMATERIAL3    14 //15-装卸耗材.bmp
 #define POS_SYSTEM_STATUS   15 //16-状态.bmp
 #define POS_KEYBOARD        16 //17-数字键盘.bmp
-#define POS_PRINT_TOOL_EN   17 //18-打印工具EN.bmp
-#define POS_PRINTING_RESUME 18 //19-打印界面.bmp
-#define POS_PRINTING        19 //20-打印界面_暂停.bmp
 #define POS_FAN_EN          20 //21-风扇EN.bmp
 #define POS_FAN_CN          21 //22-风扇CN.bmp
 #define POS_MANUALLEVEL_EN  22 //23-平台调平EN.bmp
 #define POS_MANUALLEVEL_CN  23 //24-平台调平CN.bmp
-#define POS_WIFI_ON         24 //25-WIFI_ON.bmp
-#define POS_WIFI_OFF        25 //26-WIFI_OFF.bmp
 #define POS_ZOFFSET_EN      26 //27-Z_offset_EN.bmp
 #define POS_ZOFFSET_CN      27 //28-Z_offset_CN.bmp
 #define POS_AUTOLEVEL_EN    28 //29-自动平台调平EN.bmp
@@ -34,10 +29,6 @@
 #define POS_PRINTMODE_EN    30 //31-打印模式EN.bmp
 #define POS_PRINTMODE_CN    31 //32-打印模式CN.bmp
 #define POS_EOFFSET         32 //33-E偏移调整界面
-#define POS_LASER_ON        33 //34-激光开
-#define POS_LASER_OFF       34 //35-激光关
-#define POS_PRINTING_RESUME2 35
-#define POS_PRINTING2       36
 
 extern const char *tip_language_en;
 extern const char *tip_open_fail_en;
@@ -52,11 +43,8 @@ extern const char *tip_coodextruder_en;
 extern const char *tip_stopprint_en;
 extern const char *tip_completeprint_en;
 extern const char *tip_deletefile_en;
-extern const char *tip_filamentout_en;
 extern const char *tip_pausing_en;
 extern const char *tip_power_loss_en;
-extern const char *tip_filamentinsert_en;
-extern const char *tip_extruder_en;
 extern const char *tip_waitforheating_en;
 extern const char *tip_recoveryprint_en;
 extern const char *tip_nosupport_en;
@@ -68,40 +56,7 @@ extern const char *tip_autoLevel1_en;
 extern const char *tip_autoLevel2_en;
 extern const char *tip_manualLevel_en;
 extern const char *tip_restart_cali_en;
-#if TRONXY_UI == UI_PIC480X320
-extern const uint32_t pic_index[];
 
-#define POS_ICO_LOGO        40 //41-logo.bmp
-extern const uint16_t tip_language_cn[];
-extern const uint16_t tip_factoryreset_cn[];
-extern const uint16_t tip_calibrate_cn[];
-extern const uint16_t tip_coodextruder_cn[];
-extern const uint16_t tip_stopprint_cn[];
-extern const uint16_t tip_completeprint_cn[];
-extern const uint16_t tip_deletefile_cn[];
-extern const uint16_t tip_filamentout_cn[];
-extern const uint16_t tip_pausing_cn[];
-extern const uint16_t tip_power_loss_cn[];
-extern const uint16_t tip_filamentinsert_cn[];
-extern const uint16_t tip_extruder_cn[];
-extern const uint16_t tip_waitforheating_cn[];
-extern const uint16_t tip_recoveryprint_cn[];
-extern const uint16_t tip_nosupport_cn[];
-extern const uint16_t tip_system_reset_cn[];
-extern const uint16_t tip_probe_fail_cn[];
-extern const uint16_t tip_normal_mode_cn[];
-extern const uint16_t tip_modify_save_cn[];
-extern const uint16_t tip_level_cn[];
-extern const uint16_t tip_open_fail_cn[];
-extern const uint16_t tip_read_fail_cn[];
-extern const uint16_t tip_insert_sdcard_cn[];
-extern const uint16_t tip_restart_cali_cn[];
-extern const uint16_t tip_save_ok_cn[];
-extern const uint16_t tip_level_ok_cn[];
-extern const uint16_t tip_level_ng_cn[];
-extern const uint16_t tip_dualz_limit_cn[];
-
-#else
 #define POS_LANGUAGE          0
 #define POS_ICO_LOGO          1
 #define TIP_AUTOLEVEL1_CN     0
@@ -159,18 +114,9 @@ extern const uint16_t tip_dualz_limit_cn[];
 #define TIP_FIXNOW_CN         304
 #define TIP_POWER_LOSS_CN     312
 #define TIP_DUALZ_LIMIT_CN    320
-#endif
 
 #define LOG_EROM_ADDR        0x00000000
-#if TRONXY_UI == UI_PIC480X320
-//pic_index第一个值
-#define UI_EROM_ADDR         0x00040000
-//UI:0x00040000 -- 0x00151000
-#define FONTU16_EROM_ADDR    0x00151000
-//FONT:0x00151000 -- 0x001F5000
-#define SDPIC_ADDR           0x001F5000
-//SDPIC:0x001F5000 -- 0x00200000
-#else
+
 //UI:0x00040000 -- 0x00060000
 #define THEME_EROM_ADDR      0x00060000
 //THEME:0x00060000 -- 0x000C0000
@@ -178,6 +124,6 @@ extern const uint16_t tip_dualz_limit_cn[];
 //FONT:0x000C0000 -- 0x003EC000
 #define SDPIC_ADDR           0x3EC000
 //SDPIC:0x003EC000 -- 0x0040000
-#endif
+
 #define MCU_PIC_ADDR(v)     pic_index[v]
 #define MCU_TIP_ADDR(v)     (tip_data + tip_index[v])

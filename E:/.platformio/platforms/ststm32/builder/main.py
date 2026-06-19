@@ -20,7 +20,7 @@ from os.path import basename, isdir, join
 from SCons.Script import (ARGUMENTS, COMMAND_LINE_TARGETS, AlwaysBuild,
                           Builder, Default, DefaultEnvironment)
 
-from platformio.public import list_serial_ports
+from platformio.util import get_serial_ports
 
 
 def BeforeUpload(target, source, env):  # pylint: disable=W0613,W0621
@@ -33,7 +33,7 @@ def BeforeUpload(target, source, env):  # pylint: disable=W0613,W0621
     if not bool(upload_options.get("disable_flushing", False)):
         env.FlushSerialBuffer("$UPLOAD_PORT")
 
-    before_ports = list_serial_ports()
+    before_ports = get_serial_ports()
 
     if bool(upload_options.get("use_1200bps_touch", False)):
         env.TouchSerialPort("$UPLOAD_PORT", 1200)
@@ -43,6 +43,7 @@ def BeforeUpload(target, source, env):  # pylint: disable=W0613,W0621
 
 
 env = DefaultEnvironment()
+env.SConscript("compat.py", exports="env")
 platform = env.PioPlatform()
 board = env.BoardConfig()
 
@@ -104,8 +105,7 @@ if not env.get("PIOFRAMEWORK"):
 # Target: Build executable and linkable firmware
 #
 
-frameworks = env.get("PIOFRAMEWORK", [])
-if "zephyr" in frameworks:
+if "zephyr" in env.get("PIOFRAMEWORK", []):
     env.SConscript(
         join(platform.get_package_dir(
             "framework-zephyr"), "scripts", "platformio", "platformio-build-pre.py"),
@@ -119,11 +119,6 @@ if "nobuild" in COMMAND_LINE_TARGETS:
 else:
     target_elf = env.BuildProgram()
     target_firm = env.ElfToBin(join("$BUILD_DIR", "${PROGNAME}"), target_elf)
-
-    if "zephyr" in frameworks and "mcuboot-image" in COMMAND_LINE_TARGETS:
-        target_firm = env.MCUbootImage(
-            join("$BUILD_DIR", "${PROGNAME}.mcuboot.bin"), target_firm)
-
     env.Depends(target_firm, "checkprogsize")
 
 AlwaysBuild(env.Alias("nobuild", target_firm))
@@ -213,14 +208,9 @@ elif upload_protocol == "dfu":
     vid = hwids[0][0]
     pid = hwids[0][1]
 
-    if env.subst("$BOARD").startswith(("portenta", "opta", "nicla", "giga")):
-        _upload_tool = '"%s"' % join(platform.get_package_dir(
-            "tool-dfuutil-arduino") or "", "dfu-util")
-    else:
-        # default tool for all boards with embedded DFU bootloader over USB
-        _upload_tool = '"%s"' % join(platform.get_package_dir(
-            "tool-dfuutil") or "", "bin", "dfu-util")
-
+    # default tool for all boards with embedded DFU bootloader over USB
+    _upload_tool = '"%s"' % join(platform.get_package_dir(
+        "tool-dfuutil") or "", "bin", "dfu-util")
     _upload_flags = [
         "-d", ",".join(["%s:%s" % (hwid[0], hwid[1]) for hwid in hwids]),
         "-a", "0", "-s",
@@ -229,8 +219,8 @@ elif upload_protocol == "dfu":
 
     upload_actions = [env.VerboseAction("$UPLOADCMD", "Uploading $SOURCE")]
 
-    if "arduino" in frameworks:
-        if env.subst("$BOARD").startswith(("portenta", "opta", "nicla", "giga")):
+    if "arduino" in env.get("PIOFRAMEWORK"):
+        if env.subst("$BOARD").startswith("portenta"):
             upload_actions.insert(
                 0,
                 env.VerboseAction(BeforeUpload, "Looking for upload port...")
@@ -255,18 +245,17 @@ elif upload_protocol == "dfu":
                                      "Looking for upload port..."))
 
     if "dfu-util" in _upload_tool:
-        if not env.subst("$BOARD").startswith(("portenta", "opta", "nicla", "giga")):
-            # Add special DFU header to the binary image
-            env.AddPostAction(
-                join("$BUILD_DIR", "${PROGNAME}.bin"),
-                env.VerboseAction(
-                    " ".join([
-                        '"%s"' % join(platform.get_package_dir("tool-dfuutil") or "",
-                             "bin", "dfu-suffix"),
-                        "-v %s" % vid,
-                        "-p %s" % pid,
-                        "-d 0xffff", "-a", "$TARGET"
-                    ]), "Adding dfu suffix to ${PROGNAME}.bin"))
+        # Add special DFU header to the binary image
+        env.AddPostAction(
+            join("$BUILD_DIR", "${PROGNAME}.bin"),
+            env.VerboseAction(
+                " ".join([
+                    '"%s"' % join(platform.get_package_dir("tool-dfuutil") or "",
+                         "bin", "dfu-suffix"),
+                    "-v %s" % vid,
+                    "-p %s" % pid,
+                    "-d 0xffff", "-a", "$TARGET"
+                ]), "Adding dfu suffix to ${PROGNAME}.bin"))
 
     env.Replace(
         UPLOADER=_upload_tool,
@@ -286,7 +275,7 @@ elif upload_protocol == "serial":
             "stm32flash", "stm32flash"),
         UPLOADERFLAGS=[
             "-g", board.get("upload.offset_address", "0x08000000"),
-            "-b", env.subst("$UPLOAD_SPEED") or "115200", "-w"
+            "-b", "115200", "-w"
         ],
         UPLOADCMD='$UPLOADER $UPLOADERFLAGS "$SOURCE" "${__configure_upload_port(__env__)}"'
     )
@@ -316,7 +305,7 @@ elif upload_protocol in debug_tools:
     ]
     openocd_args.extend(
         debug_tools.get(upload_protocol).get("server").get("arguments", []))
-    if env.GetProjectOption("debug_speed", ""):
+    if env.GetProjectOption("debug_speed"):
         openocd_args.extend(
             ["-c", "adapter speed %s" % env.GetProjectOption("debug_speed")]
         )
@@ -346,6 +335,14 @@ else:
     sys.stderr.write("Warning! Unknown upload protocol %s\n" % upload_protocol)
 
 AlwaysBuild(env.Alias("upload", upload_source, upload_actions))
+
+#
+# Information about obsolete method of specifying linker scripts
+#
+
+if any("-Wl,-T" in f for f in env.get("LINKFLAGS", [])):
+    print("Warning! '-Wl,-T' option for specifying linker scripts is deprecated. "
+          "Please use 'board_build.ldscript' option in your 'platformio.ini' file.")
 
 #
 # Default targets

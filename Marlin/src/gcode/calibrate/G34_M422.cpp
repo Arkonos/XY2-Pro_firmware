@@ -37,16 +37,9 @@
   #include "../../feature/bedlevel/bedlevel.h"
 #endif
 
-#if HAS_MULTI_HOTEND
-  #include "../../module/tool_change.h"
-#endif
 
 #if HAS_Z_STEPPER_ALIGN_STEPPER_XY
   #include "../../libs/least_squares_fit.h"
-#endif
-
-#if ENABLED(BLTOUCH)
-  #include "../../feature/bltouch.h"
 #endif
 
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
@@ -148,12 +141,10 @@ void GcodeSuite::G34() {
         tool_change(0, true);
       #endif
 
-      TERN_(HAS_DUPLICATION_MODE, set_duplication_enabled(false));
-
-      // In BLTOUCH HS mode, the probe travels in a deployed state.
+      // In BLTO UCH HS mode, the probe travels in a deployed state.
       // Users of G34 might have a badly misaligned bed, so raise Z by the
-      // length of the deployed pin (BLTOUCH stroke < 7mm)
-      #define Z_BASIC_CLEARANCE (Z_CLEARANCE_BETWEEN_PROBES + TERN0(BLTOUCH, bltouch.z_extra_clearance()))
+      // length of the deployed pin (BLTO UCH stroke < 7mm)
+      #define Z_BASIC_CLEARANCE (Z_CLEARANCE_BETWEEN_PROBES)
 
       // Compute a worst-case clearance height to probe from. After the first
       // iteration this will be re-calculated based on the actual bed position

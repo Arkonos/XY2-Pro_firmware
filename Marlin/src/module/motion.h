@@ -30,13 +30,6 @@
 
 #include "../inc/MarlinConfig.h"
 
-#if IS_SCARA
-  #include "scara.h"
-#endif
-#if TRONXY_UI
-#include "muyu.h"
-#endif
-
 // Error margin to work around float imprecision
 constexpr float fslop = 0.0001;
 
@@ -53,11 +46,6 @@ extern xyze_pos_t current_position,  // High-level current tool position
 
 // Scratch space for a cartesian result
 extern xyz_pos_t cartes;
-
-// Until kinematics.cpp is created, declare this here
-#if IS_KINEMATIC
-  extern abce_pos_t delta;
-#endif
 
 #if HAS_ABL_NOT_UBL
   extern feedRate_t xy_probe_feedrate_mm_s;
@@ -130,15 +118,6 @@ inline float home_bump_mm(const AxisEnum axis) {
   inline void update_workspace_offset(const AxisEnum) {}
 #endif
 
-#if HAS_HOTEND_OFFSET
-  extern xyz_pos_t hotend_offset[HOTENDS];
-  void reset_hotend_offsets();
-#elif HOTENDS
-  extern xyz_pos_t hotend_offset[2];
-#else
-  constexpr xyz_pos_t hotend_offset[1] = { { 0 } };
-#endif
-
 #if HAS_SOFTWARE_ENDSTOPS
 
   typedef struct {
@@ -166,42 +145,6 @@ inline float home_bump_mm(const AxisEnum axis) {
               TERN_(MAX_SOFTWARE_ENDSTOP_Z, amax = max.z);
               break;
           #endif
-          #if HAS_I_AXIS
-            case I_AXIS:
-              TERN_(MIN_SOFTWARE_ENDSTOP_I, amin = min.i);
-              TERN_(MIN_SOFTWARE_ENDSTOP_I, amax = max.i);
-              break;
-          #endif
-          #if HAS_J_AXIS
-            case J_AXIS:
-              TERN_(MIN_SOFTWARE_ENDSTOP_J, amin = min.j);
-              TERN_(MIN_SOFTWARE_ENDSTOP_J, amax = max.j);
-              break;
-          #endif
-          #if HAS_K_AXIS
-            case K_AXIS:
-              TERN_(MIN_SOFTWARE_ENDSTOP_K, amin = min.k);
-              TERN_(MIN_SOFTWARE_ENDSTOP_K, amax = max.k);
-              break;
-          #endif
-          #if HAS_U_AXIS
-            case U_AXIS:
-              TERN_(MIN_SOFTWARE_ENDSTOP_U, amin = min.u);
-              TERN_(MIN_SOFTWARE_ENDSTOP_U, amax = max.u);
-              break;
-          #endif
-          #if HAS_V_AXIS
-            case V_AXIS:
-              TERN_(MIN_SOFTWARE_ENDSTOP_V, amin = min.v);
-              TERN_(MIN_SOFTWARE_ENDSTOP_V, amax = max.v);
-              break;
-          #endif
-          #if HAS_W_AXIS
-            case W_AXIS:
-              TERN_(MIN_SOFTWARE_ENDSTOP_W, amin = min.w);
-              TERN_(MIN_SOFTWARE_ENDSTOP_W, amax = max.w);
-              break;
-          #endif
           default: break;
         }
       #endif
@@ -218,7 +161,6 @@ inline float home_bump_mm(const AxisEnum axis) {
   #define SET_SOFT_ENDSTOP_LOOSE(loose) (soft_endstop._loose = loose)
 
 #else // !HAS_SOFTWARE_ENDSTOPS
-
   typedef struct {
     bool enabled() { return false; }
     void get_manual_axis_limits(const AxisEnum axis, float &amin, float &amax) {
@@ -254,7 +196,7 @@ void report_current_position_projected();
     M_RESET,    //  1 machine is ready for use
     M_ALARM,    //  2 machine is in alarm state (soft shut down)
     M_IDLE,     //  3 program stop or no more blocks (M0, M1, M60)
-    M_END,      //  4 program end via M2, M30
+    M_END,      //  4 program end via M2
     M_RUNNING,  //  5 motion is running
     M_HOLD,     //  6 motion is holding
     M_PROBE,    //  7 probe cycle active
@@ -294,9 +236,6 @@ void quickstop_stepper();
  */
 void sync_plan_position();
 
-#if HAS_EXTRUDERS
-  void sync_plan_position_e();
-#endif
 
 /**
  * Move the planner to the current position from wherever it last moved
@@ -304,25 +243,13 @@ void sync_plan_position();
  */
 void line_to_current_position(const_feedRate_t fr_mm_s=feedrate_mm_s);
 
-#if HAS_EXTRUDERS
-  void unscaled_e_move(const_float_t length, const_feedRate_t fr_mm_s);
-#endif
-
 void prepare_line_to_destination();
 
-void _internal_move_to_destination(const_feedRate_t fr_mm_s=0.0f OPTARG(IS_KINEMATIC, const bool is_fast=false));
+void _internal_move_to_destination(const_feedRate_t fr_mm_s=0.0f);
 
 inline void prepare_internal_move_to_destination(const_feedRate_t fr_mm_s=0.0f) {
   _internal_move_to_destination(fr_mm_s);
 }
-
-#if IS_KINEMATIC
-  void prepare_fast_move_to_destination(const_feedRate_t scaled_fr_mm_s=MMS_SCALED(feedrate_mm_s));
-
-  inline void prepare_internal_fast_move_to_destination(const_feedRate_t fr_mm_s=0.0f) {
-    _internal_move_to_destination(fr_mm_s, true);
-  }
-#endif
 
 /**
  * Blocking movement and shorthand functions
@@ -338,30 +265,6 @@ void do_blocking_move_to_x(const_float_t rx, const_feedRate_t fr_mm_s=0.0f);
 #endif
 #if HAS_Z_AXIS
   void do_blocking_move_to_z(const_float_t rz, const_feedRate_t fr_mm_s=0.0f);
-#endif
-#if HAS_I_AXIS
-  void do_blocking_move_to_i(const_float_t ri, const_feedRate_t fr_mm_s=0.0f);
-  void do_blocking_move_to_xyz_i(const xyze_pos_t &raw, const_float_t i, const_feedRate_t fr_mm_s=0.0f);
-#endif
-#if HAS_J_AXIS
-  void do_blocking_move_to_j(const_float_t rj, const_feedRate_t fr_mm_s=0.0f);
-  void do_blocking_move_to_xyzi_j(const xyze_pos_t &raw, const_float_t j, const_feedRate_t fr_mm_s=0.0f);
-#endif
-#if HAS_K_AXIS
-  void do_blocking_move_to_k(const_float_t rk, const_feedRate_t fr_mm_s=0.0f);
-  void do_blocking_move_to_xyzij_k(const xyze_pos_t &raw, const_float_t k, const_feedRate_t fr_mm_s=0.0f);
-#endif
-#if HAS_U_AXIS
-  void do_blocking_move_to_u(const_float_t ru, const_feedRate_t fr_mm_s=0.0f);
-  void do_blocking_move_to_xyzijk_u(const xyze_pos_t &raw, const_float_t u, const_feedRate_t fr_mm_s=0.0f);
-#endif
-#if HAS_V_AXIS
-  void do_blocking_move_to_v(const_float_t rv, const_feedRate_t fr_mm_s=0.0f);
-  void do_blocking_move_to_xyzijku_v(const xyze_pos_t &raw, const_float_t v, const_feedRate_t fr_mm_s=0.0f);
-#endif
-#if HAS_W_AXIS
-  void do_blocking_move_to_w(const float rw, const feedRate_t &fr_mm_s=0.0f);
-  void do_blocking_move_to_xyzijkuv_w(const xyze_pos_t &raw, const float w, const feedRate_t &fr_mm_s=0.0f);
 #endif
 
 #if HAS_Y_AXIS
@@ -393,16 +296,13 @@ void restore_feedrate_and_scaling();
 typedef IF<(NUM_AXES > 8), uint16_t, uint8_t>::type main_axes_bits_t;
 constexpr main_axes_bits_t main_axes_mask = _BV(NUM_AXES) - 1;
 
-typedef IF<(NUM_AXES + EXTRUDERS > 8), uint16_t, uint8_t>::type e_axis_bits_t;
-constexpr e_axis_bits_t e_axis_mask = (_BV(EXTRUDERS) - 1) << NUM_AXES;
-
 void set_axis_is_at_home(const AxisEnum axis);
 
 #if HAS_ENDSTOPS
   /**
    * axes_homed
    *   Flags that each linear axis was homed.
-   *   XYZ on cartesian, ABC on delta, ABZ on SCARA.
+   *   XYZ on cartesian, ABC on del ta, ABZ on SCAR A.
    *
    * axes_trusted
    *   Flags that the position is trusted in each linear axis. Set when homed.
@@ -525,95 +425,30 @@ void home_if_needed(const bool keeplev=false);
 /**
  * position_is_reachable family of functions
  */
-#if IS_KINEMATIC // (DELTA or SCARA)
 
-  #if HAS_SCARA_OFFSET
-    extern abc_pos_t scara_home_offset; // A and B angular offsets, Z mm offset
-  #endif
+// Return true if the given position is within the machine bounds.
+bool position_is_reachable(const_float_t rx, const_float_t ry);
+inline bool position_is_reachable(const xy_pos_t &pos) {
+  return position_is_reachable(pos.x, pos.y);
+}
 
-  // Return true if the given point is within the printable area
-  bool position_is_reachable(const_float_t rx, const_float_t ry, const float inset=0);
+#define TOOL_X_HOME_DIR(T) X_HOME_DIR
+enum DualXMode : char {
+  DXC_FULL_CONTROL_MODE,
+  DXC_AUTO_PARK_MODE,
+  DXC_DUPLICATION_MODE,
+  DXC_MIRRORED_MODE
+};
+extern DualXMode dual_x_carriage_mode;
+extern float inactive_extruder_x,                 // Used in mode 0 & 1
+              duplicate_extruder_x_offset;         // Used in mode 2 & 3
+extern xyz_pos_t raised_parked_position;          // Used in mode 1
+extern bool active_extruder_parked;               // Used in mode 1, 2 & 3
+extern millis_t delayed_move_time;                // Used in mode 1
+float x_home_pos(const uint8_t extruder);
 
-  inline bool position_is_reachable(const xy_pos_t &pos, const float inset=0) {
-    return position_is_reachable(pos.x, pos.y, inset);
-  }
-
-#else
-
-  // Return true if the given position is within the machine bounds.
-  bool position_is_reachable(const_float_t rx, const_float_t ry);
-  inline bool position_is_reachable(const xy_pos_t &pos) {
-    return position_is_reachable(pos.x, pos.y);
-  }
-
-#endif
-
-/**
- * Duplication mode
- */
-#if HAS_DUPLICATION_MODE
-  extern bool extruder_duplication_enabled;       // Used in Dual X mode 2
-#endif
-
-/**
- * Dual X Carriage
- */
-#if ENABLED(DUAL_X_CARRIAGE)
-
-  enum DualXMode : char {
-    DXC_FULL_CONTROL_MODE,
-    DXC_AUTO_PARK_MODE,
-    DXC_DUPLICATION_MODE,
-    DXC_MIRRORED_MODE
-  };
-
-  extern DualXMode dual_x_carriage_mode;
-  extern float inactive_extruder_x,                 // Used in mode 0 & 1
-               duplicate_extruder_x_offset;         // Used in mode 2 & 3
-  extern xyz_pos_t raised_parked_position;          // Used in mode 1
-  extern bool active_extruder_parked;               // Used in mode 1, 2 & 3
-  extern millis_t delayed_move_time;                // Used in mode 1
-  extern celsius_t duplicate_extruder_temp_offset;  // Used in mode 2 & 3
-  extern bool idex_mirrored_mode;                   // Used in mode 3
-
-  float x_home_pos(const uint8_t extruder);
-
-  #define TOOL_X_HOME_DIR(T) ((T) ? X2_HOME_DIR : X_HOME_DIR)
-
-  void set_duplication_enabled(const bool dupe, const int8_t tool_index=-1);
-  void idex_set_mirrored_mode(const bool mirr);
-  void idex_set_parked(const bool park=true);
-
-#else
-
-  #if ENABLED(MULTI_NOZZLE_DUPLICATION)
-    extern uint8_t duplication_e_mask;
-    enum DualXMode : char { DXC_DUPLICATION_MODE = 2 };
-    FORCE_INLINE void set_duplication_enabled(const bool dupe) { extruder_duplication_enabled = dupe; }
-  #endif
-
-  #define TOOL_X_HOME_DIR(T) X_HOME_DIR
-  enum DualXMode : char {
-    DXC_FULL_CONTROL_MODE,
-    DXC_AUTO_PARK_MODE,
-    DXC_DUPLICATION_MODE,
-    DXC_MIRRORED_MODE
-  };
-  extern DualXMode dual_x_carriage_mode;
-  extern float inactive_extruder_x,                 // Used in mode 0 & 1
-               duplicate_extruder_x_offset;         // Used in mode 2 & 3
-  extern xyz_pos_t raised_parked_position;          // Used in mode 1
-  extern bool active_extruder_parked;               // Used in mode 1, 2 & 3
-  extern millis_t delayed_move_time;                // Used in mode 1
-  float x_home_pos(const uint8_t extruder);
-
-#endif
 
 bool idex_is_duplicating();
-
-#if HAS_M206_COMMAND
-  void set_home_offset(const AxisEnum axis, const float v);
-#endif
 
 #if USE_SENSORLESS
   struct sensorless_t;

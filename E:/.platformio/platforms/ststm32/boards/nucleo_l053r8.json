@@ -1,14 +1,14 @@
 {
   "build": {
     "cpu": "cortex-m0plus",
-    "extra_flags": "-DSTM32L0 -DSTM32L053xx",
+    "extra_flags": "-DSTM32L053xx",
     "f_cpu": "32000000L",
     "framework_extra_flags": {
       "arduino": "-D__CORTEX_SC=0"
     },
     "mcu": "stm32l053r8t6",
     "product_line": "STM32L053xx",
-    "variant": "STM32L0xx/L052R(6-8)T_L053R(6-8)T_L063R8T"
+    "variant": "NUCLEO_L053R8"
   },
   "debug": {
     "default_tools": [
@@ -19,11 +19,12 @@
       "stlink"
     ],
     "openocd_target": "stm32l0",
-    "svd_path": "STM32L053.svd"
+    "svd_path": "STM32L053x.svd"
   },
   "frameworks": [
     "arduino",
     "cmsis",
+    "mbed",
     "stm32cube",
     "libopencm3",
     "zephyr"

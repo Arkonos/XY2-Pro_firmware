@@ -32,10 +32,6 @@
 #include "../../module/planner.h"
 #include "../../feature/bedlevel/bedlevel.h"
 
-#if HAS_BED_PROBE && DISABLED(BABYSTEP_ZPROBE_OFFSET)
-  #include "../../module/probe.h"
-#endif
-
 #if HAS_GRAPHICAL_TFT
   #include "../tft/tft.h"
   #if ENABLED(TOUCH_SCREEN)
@@ -228,7 +224,7 @@
  *    Leveling On/Off     (if data exists, and homed)
  *    Fade Height: ---    (Req: ENABLE_LEVELING_FADE_HEIGHT)
  *    Mesh Z Offset: ---  (Req: MESH_BED_LEVELING)
- *    Z Probe Offset: --- (Req: HAS_BED_PROBE, Opt: BABYSTEP_ZPROBE_OFFSET)
+ *    Z Probe Offset: --- (Req: HAS_BED_PROBE)
  *    Level Bed >
  *    Bed Tramming >      (if homed)
  *    Load Settings       (Req: EEPROM_SETTINGS)
@@ -284,9 +280,7 @@ void menu_bed_leveling() {
     EDIT_ITEM(LCD_Z_OFFSET_TYPE, MSG_BED_Z, &bedlevel.z_offset, Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX);
   #endif
 
-  #if ENABLED(BABYSTEP_ZPROBE_OFFSET)
-    SUBMENU(MSG_ZPROBE_ZOFFSET, lcd_babystep_zoffset);
-  #elif HAS_BED_PROBE
+  #if HAS_BED_PROBE
     EDIT_ITEM(LCD_Z_OFFSET_TYPE, MSG_ZPROBE_ZOFFSET, &probe.offset.z, Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX);
   #endif
 

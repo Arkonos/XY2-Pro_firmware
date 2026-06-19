@@ -2,14 +2,11 @@
   "build": {
     "core": "stm32",
     "cpu": "cortex-m4",
-    "extra_flags": "-DSTM32F4 -DSTM32F413xx",
+    "extra_flags": "-DSTM32F413xx",
     "f_cpu": "100000000L",
-    "framework_extra_flags": {
-      "arduino": "-DCUSTOM_PERIPHERAL_PINS"
-    },
     "mcu": "stm32f413zht6",
     "product_line": "STM32F413xx",
-    "variant": "STM32F4xx/F413Z(G-H)(J-T)_F423ZH(J-T)"
+    "variant": "DISCO_F413ZH"
   },
   "connectivity": [
     "can"
@@ -35,8 +32,8 @@
   ],
   "name": "ST 32F413HDISCOVERY",
   "upload": {
-    "maximum_ram_size": 327680,
-    "maximum_size": 1572864,
+    "maximum_ram_size": 131072,
+    "maximum_size": 524288,
     "protocol": "stlink",
     "protocols": [
       "jlink",

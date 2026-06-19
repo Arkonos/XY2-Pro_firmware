@@ -2,14 +2,14 @@
   "build": {
     "core": "stm32",
     "cpu": "cortex-m0plus",
-    "extra_flags": "-DSTM32L0 -DSTM32L0xx -DSTM32L051xx",
+    "extra_flags": "-DSTM32L0xx -DSTM32L051xx",
     "f_cpu": "32000000L",
     "framework_extra_flags": {
-      "arduino": "-DCUSTOM_PERIPHERAL_PINS -D__CORTEX_SC=0"
+      "arduino": "-D__CORTEX_SC=0"
     },
     "mcu": "stm32l051c8t6",
     "product_line": "STM32L051xx",
-    "variant": "STM32L0xx/L051C(6-8)(T-U)"
+    "variant": "RHF76_052"
   },
   "connectivity": [
     "can"

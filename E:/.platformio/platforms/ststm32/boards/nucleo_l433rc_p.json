@@ -2,11 +2,11 @@
   "build": {
     "core": "stm32",
     "cpu": "cortex-m4",
-    "extra_flags": "-DSTM32L4 -DSTM32L433xx",
+    "extra_flags": "-DSTM32L433xx",
     "f_cpu": "80000000L",
     "mcu": "stm32l433rc",
     "product_line": "STM32L433xx",
-    "variant": "STM32L4xx/L433RCTxP"
+    "variant": "NUCLEO_L433RC_P"
   },
   "debug": {
     "default_tools": [

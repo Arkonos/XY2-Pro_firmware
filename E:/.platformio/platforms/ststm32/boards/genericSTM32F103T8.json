@@ -14,9 +14,9 @@
         "0x0004"
       ]
     ],
-    "mcu": "stm32f103t8u6",
+    "mcu": "stm32f103t8t6",
     "product_line": "STM32F103xB",
-    "variant": "STM32F1xx/F103T(8-B)U"
+    "variant": "Generic_F103Tx"
   },
   "debug": {
     "jlink_device": "STM32F103T8",

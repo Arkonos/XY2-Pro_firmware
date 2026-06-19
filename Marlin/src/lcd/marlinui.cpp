@@ -38,9 +38,8 @@
 
 // All displays share the MarlinUI class
 #include "marlinui.h"
-#if !TRONXY_UI
 MarlinUI ui;
-#endif
+
 
 #if HAS_DISPLAY
   #include "../gcode/queue.h"
@@ -57,10 +56,6 @@ MarlinUI ui;
 
 #if ENABLED(LCD_PROGRESS_BAR) && !IS_TFTGLCD_PANEL
   #define BASIC_PROGRESS_BAR 1
-#endif
-
-#if ANY(HAS_DISPLAY, HAS_STATUS_MESSAGE, BASIC_PROGRESS_BAR)
-  #include "../module/printcounter.h"
 #endif
 
 #if LCD_HAS_WAIT_FOR_MOVE
@@ -759,18 +754,7 @@ void MarlinUI::init() {
     millis_t ManualMove::start_time = 0;
     float ManualMove::menu_scale = 1;
     screenFunc_t ManualMove::screen_ptr;
-    #if IS_KINEMATIC
-      float ManualMove::offset = 0;
-      xyze_pos_t ManualMove::all_axes_destination = { 0 };
-      bool ManualMove::processing = false;
-    #endif
-    #if MULTI_E_MANUAL
-      int8_t ManualMove::e_index = 0;
-    #endif
     AxisEnum ManualMove::axis = NO_AXIS_ENUM;
-    #if ENABLED(MANUAL_E_MOVES_RELATIVE)
-      float ManualMove::e_origin = 0;
-    #endif
 
     /**
      * If a manual move has been posted and its time has arrived, and if the planner
@@ -797,47 +781,14 @@ void MarlinUI::init() {
 
         const feedRate_t fr_mm_s = (axis < LOGICAL_AXES) ? manual_feedrate_mm_s[axis] : XY_PROBE_FEEDRATE_MM_S;
 
-        #if IS_KINEMATIC
+        // For Cartesian / Core motion simply move to the current_position
+        planner.buffer_line(current_position, fr_mm_s,
+          TERN_(MULTI_E_MANUAL, axis == E_AXIS ? e_index :) active_extruder
+        );
 
-          #if HAS_MULTI_EXTRUDER
-            REMEMBER(ae, active_extruder);
-            #if MULTI_E_MANUAL
-              if (axis == E_AXIS) active_extruder = e_index;
-            #endif
-          #endif
+        //SERIAL_ECHOLNPGM("Add planner.move with Axis ", AS_CHAR(AXIS_CHAR(axis)), " at FR ", fr_mm_s);
 
-          // Apply a linear offset to a single axis
-          if (axis == ALL_AXES_ENUM)
-            destination = all_axes_destination;
-          else if (axis <= XYZE) {
-            destination = current_position;
-            destination[axis] += offset;
-          }
-
-          // Reset for the next move
-          offset = 0;
-          axis = NO_AXIS_ENUM;
-
-          // DELTA and SCARA machines use segmented moves, which could fill the planner during the call to
-          // move_to_destination. This will cause idle() to be called, which can then call this function while the
-          // previous invocation is being blocked. Modifications to offset shouldn't be made while
-          // processing is true or the planner will get out of sync.
-          processing = true;
-          prepare_internal_move_to_destination(fr_mm_s);  // will set current_position from destination
-          processing = false;
-
-        #else
-
-          // For Cartesian / Core motion simply move to the current_position
-          planner.buffer_line(current_position, fr_mm_s,
-            TERN_(MULTI_E_MANUAL, axis == E_AXIS ? e_index :) active_extruder
-          );
-
-          //SERIAL_ECHOLNPGM("Add planner.move with Axis ", AS_CHAR(AXIS_CHAR(axis)), " at FR ", fr_mm_s);
-
-          axis = NO_AXIS_ENUM;
-
-        #endif
+        axis = NO_AXIS_ENUM;
       }
     }
 
@@ -870,7 +821,6 @@ void MarlinUI::init() {
   /**
    * Update the LCD, read encoder buttons, etc.
    *   - Read button states
-   *   - Check the SD Card slot state
    *   - Act on RepRap World keypad input
    *   - Update the encoder position
    *   - Apply acceleration to the encoder position
@@ -1436,37 +1386,8 @@ void MarlinUI::init() {
    */
 
   void MarlinUI::reset_status(const bool no_welcome) {
-    #if SERVICE_INTERVAL_1 > 0
-      static PGMSTR(service1, "> " SERVICE_NAME_1 "!");
-    #endif
-    #if SERVICE_INTERVAL_2 > 0
-      static PGMSTR(service2, "> " SERVICE_NAME_2 "!");
-    #endif
-    #if SERVICE_INTERVAL_3 > 0
-      static PGMSTR(service3, "> " SERVICE_NAME_3 "!");
-    #endif
-
     FSTR_P msg;
-    if (printingIsPaused())
-      msg = GET_TEXT_F(MSG_PRINT_PAUSED);
-    #if ENABLED(SDSUPPORT)
-      else if (IS_SD_PRINTING())
-        return set_status(card.longest_filename(), true);
-    #endif
-    else if (print_job_timer.isRunning())
-      msg = GET_TEXT_F(MSG_PRINTING);
-
-    #if SERVICE_INTERVAL_1 > 0
-      else if (print_job_timer.needsService(1)) msg = FPSTR(service1);
-    #endif
-    #if SERVICE_INTERVAL_2 > 0
-      else if (print_job_timer.needsService(2)) msg = FPSTR(service2);
-    #endif
-    #if SERVICE_INTERVAL_3 > 0
-      else if (print_job_timer.needsService(3)) msg = FPSTR(service3);
-    #endif
-
-    else if (!no_welcome) msg = GET_TEXT_F(WELCOME_MSG);
+    if (!no_welcome) msg = GET_TEXT_F(WELCOME_MSG);
 
     else if (ENABLED(DWIN_LCD_PROUI))
         msg = F("");
@@ -1610,24 +1531,6 @@ void MarlinUI::init() {
 
 #if HAS_DISPLAY
 
-  #if ENABLED(SDSUPPORT)
-    extern bool wait_for_user, wait_for_heatup;
-  #endif
-
-  void MarlinUI::abort_print() {
-    #if ENABLED(SDSUPPORT)
-      wait_for_heatup = wait_for_user = false;
-      card.abortFilePrintSoon();
-    #endif
-    #ifdef ACTION_ON_CANCEL
-      hostui.cancel();
-    #endif
-    IF_DISABLED(SDSUPPORT, print_job_timer.stop());
-    TERN_(HOST_PROMPT_SUPPORT, hostui.prompt_open(PROMPT_INFO, F("UI Aborted"), FPSTR(DISMISS_STR)));
-    LCD_MESSAGE(MSG_PRINT_ABORTED);
-    TERN_(HAS_MARLINUI_MENU, return_to_status());
-  }
-
   #if BOTH(HAS_MARLINUI_MENU, PSU_CONTROL)
 
     void MarlinUI::poweroff() {
@@ -1636,57 +1539,6 @@ void MarlinUI::init() {
     }
 
   #endif
-
-  void MarlinUI::flow_fault() {
-    LCD_ALERTMESSAGE(MSG_FLOWMETER_FAULT);
-    BUZZ(1000, 440);
-    TERN_(HAS_MARLINUI_MENU, return_to_status());
-  }
-
-  void MarlinUI::pause_print() {
-    #if HAS_MARLINUI_MENU
-      synchronize(GET_TEXT_F(MSG_PAUSING));
-      defer_status_screen();
-    #endif
-
-    TERN_(HAS_TOUCH_SLEEP, wakeup_screen());
-    TERN_(HOST_PROMPT_SUPPORT, hostui.prompt_open(PROMPT_PAUSE_RESUME, F("UI Pause"), F("Resume")));
-
-    LCD_MESSAGE(MSG_PRINT_PAUSED);
-
-    #if ENABLED(PARK_HEAD_ON_PAUSE)
-      pause_show_message(PAUSE_MESSAGE_PARKING, PAUSE_MODE_PAUSE_PRINT); // Show message immediately to let user know about pause in progress
-      queue.inject(F("M25 P\nM24"));
-    #elif ENABLED(SDSUPPORT)
-      queue.inject(F("M25"));
-    #elif defined(ACTION_ON_PAUSE)
-      hostui.pause();
-    #endif
-  }
-
-  void MarlinUI::resume_print() {
-    reset_status();
-    TERN_(PARK_HEAD_ON_PAUSE, wait_for_heatup = wait_for_user = false);
-    TERN_(SDSUPPORT, if (IS_SD_PAUSED()) queue.inject_P(M24_STR));
-    #ifdef ACTION_ON_RESUME
-      hostui.resume();
-    #endif
-    print_job_timer.start(); // Also called by M24
-  }
-
-  #if HAS_PRINT_PROGRESS
-
-    MarlinUI::progress_t MarlinUI::_get_progress() {
-      return (
-        TERN0(LCD_SET_PROGRESS_MANUALLY, (progress_override & PROGRESS_MASK))
-        #if ENABLED(SDSUPPORT)
-          ?: TERN(HAS_PRINT_PROGRESS_PERMYRIAD, card.permyriadDone(), card.percentDone())
-        #endif
-      );
-    }
-
-  #endif
-
   #if HAS_TOUCH_BUTTONS
 
     //
@@ -1719,61 +1571,6 @@ void MarlinUI::init() {
   #endif
 
 #endif // HAS_DISPLAY
-
-#if ENABLED(SDSUPPORT)
-
-  #if ENABLED(EXTENSIBLE_UI)
-    #include "extui/ui_api.h"
-  #endif
-
-  void MarlinUI::media_changed(const uint8_t old_status, const uint8_t status) {
-    if (old_status == status) {
-      TERN_(EXTENSIBLE_UI, ExtUI::onMediaError()); // Failed to mount/unmount
-      return;
-    }
-
-    if (status) {
-      if (old_status < 2) {
-        #if ENABLED(EXTENSIBLE_UI)
-          ExtUI::onMediaInserted();
-        #elif ENABLED(BROWSE_MEDIA_ON_INSERT)
-          clear_menu_history();
-          quick_feedback();
-          goto_screen(MEDIA_MENU_GATEWAY);
-        #else
-          LCD_MESSAGE(MSG_MEDIA_INSERTED);
-        #endif
-      }
-    }
-    else {
-      if (old_status < 2) {
-        #if ENABLED(EXTENSIBLE_UI)
-          ExtUI::onMediaRemoved();
-        #elif HAS_SD_DETECT
-          LCD_MESSAGE(MSG_MEDIA_REMOVED);
-          #if HAS_MARLINUI_MENU
-            if (!defer_return_to_status) return_to_status();
-          #endif
-        #endif
-      }
-    }
-
-    reinit_lcd(); // Revive a noisy shared SPI LCD
-
-    refresh();
-
-    #if HAS_WIRED_LCD || LED_POWEROFF_TIMEOUT > 0
-      const millis_t ms = millis();
-    #endif
-
-    TERN_(HAS_WIRED_LCD, next_lcd_update_ms = ms + LCD_UPDATE_INTERVAL); // Delay LCD update for SD activity
-
-    #if LED_POWEROFF_TIMEOUT > 0
-      leds.reset_timeout(ms);
-    #endif
-  }
-
-#endif // SDSUPPORT
 
 #if HAS_MARLINUI_MENU
   void MarlinUI::reset_settings() {

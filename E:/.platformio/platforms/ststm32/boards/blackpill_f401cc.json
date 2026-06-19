@@ -1,19 +1,16 @@
 {
   "build": {
-    "arduino": {
-      "variant_h": "variant_BLACKPILL_F401Cx.h"
-    },
     "core": "stm32",
     "cpu": "cortex-m4",
-    "extra_flags": "-DSTM32F4 -DSTM32F4xx -DSTM32F401xC",
+    "extra_flags": "-DSTM32F4xx -DSTM32F401xC",
     "f_cpu": "84000000L",
-    "framework_extra_flags": {
-      "arduino": "-DCUSTOM_PERIPHERAL_PINS"
-    },
     "mcu": "stm32f401ccu6",
     "product_line": "STM32F401xC",
-    "variant": "STM32F4xx/F401CC(F-U-Y)_F401C(B-D-E)(U-Y)"
+    "variant": "Generic_F401Cx"
   },
+  "connectivity": [
+    "can"
+  ],
   "debug": {
     "jlink_device": "STM32F401CC",
     "openocd_target": "stm32f4x",
@@ -25,7 +22,7 @@
     "stm32cube",
     "libopencm3"
   ],
-  "name": "WeAct Studio BlackPill V2.0 (STM32F401CC)",
+  "name": "BlackPill F401CC",
   "upload": {
     "maximum_ram_size": 65536,
     "maximum_size": 262144,
@@ -39,6 +36,6 @@
       "dfu"
     ]
   },
-  "url": "https://www.weact-tc.cn/",
-  "vendor": "WeAct Studio"
+  "url": "https://www.st.com/en/microcontrollers-microprocessors/stm32f401cc.html",
+  "vendor": "ST"
 }

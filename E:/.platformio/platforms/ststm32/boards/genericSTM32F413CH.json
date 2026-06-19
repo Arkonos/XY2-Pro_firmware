@@ -2,11 +2,11 @@
   "build": {
     "core": "stm32",
     "cpu": "cortex-m4",
-    "extra_flags": "-DSTM32F4 -DSTM32F413xx -DSTM32F4xx",
+    "extra_flags": "-DSTM32F413xx -DSTM32F4xx",
     "f_cpu": "100000000L",
-    "mcu": "stm32f413chu6",
+    "mcu": "stm32f413ch",
     "product_line": "STM32F413xx",
-    "variant": "STM32F4xx/F413C(G-H)U_F423CHU"
+    "variant": "Generic_F4x3Cx"
   },
   "debug": {
     "jlink_device": "STM32F413CH",

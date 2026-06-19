@@ -22,13 +22,13 @@ The Low-Layer (LL) APIs, a light-weight, optimized, expert oriented set of APIs 
 http://www.st.com/en/embedded-software/stm32cube-embedded-software.html?querycriteria=productId=LN1897
 """
 
+import glob
 import os
 import shutil
 import string
 import sys
-import re
 
-from SCons.Script import ARGUMENTS, DefaultEnvironment
+from SCons.Script import DefaultEnvironment
 
 from platformio.builder.tools.piolib import PlatformIOLibBuilder
 
@@ -49,10 +49,18 @@ assert all(os.path.isdir(d) for d in (FRAMEWORK_DIR, LDSCRIPTS_DIR))
 
 class CustomLibBuilder(PlatformIOLibBuilder):
 
-    def build(self):
-        if self.env.GetBuildType() == "debug":
-            self.env.ConfigureDebugFlags()
-        return PlatformIOLibBuilder.build(self)
+    PARSE_SRC_BY_H_NAME = False
+
+    # Max depth of nested includes:
+    # -1 = unlimited
+    # 0 - disabled nesting
+    # >0 - number of allowed nested includes
+    CCONDITIONAL_SCANNER_DEPTH = 0
+
+    # For cases when sources located not only in "src" dir
+    @property
+    def src_dir(self):
+        return self.path
 
 
 def generate_ldscript(default_ldscript_path):
@@ -72,48 +80,23 @@ def generate_ldscript(default_ldscript_path):
         fp.write(content)
 
 
-def get_linker_script(board_mcu, board_cpu):
-    def _glob_re(pattern, ldscripts):
-        re_c = re.compile(pattern)
-        return list(filter(re_c.match, ldscripts))
-
-    if len(board_mcu) > 12:
-        board_mcu = board_mcu[:12] + "X" + board_mcu[13:]
-
-    family_ldscripts_dir = os.path.join(LDSCRIPTS_DIR, board_mcu[0:7])
-
-    ldscript_matches = _glob_re(
-        "^%s.*_FLASH\\.ld$" % board_mcu.upper(),
-        os.listdir(family_ldscripts_dir),
+def get_linker_script(board_mcu):
+    ldscript_match = glob.glob(
+        os.path.join(
+            LDSCRIPTS_DIR, board_mcu[0:7], board_mcu[0:11].upper() + "*_FLASH.ld"
+        )
     )
 
-    if ldscript_matches:
-        ldscript_file = ldscript_matches[0]
-        if len(ldscript_matches) > 1:
-            # Precise match with the CPU in filename has the highest priority
-            board_cpu = board_cpu.replace("cortex-", "").upper()
-            for match in ldscript_matches:
-                if board_cpu in match:
-                    ldscript_file = match
-                    break
-
-            if int(ARGUMENTS.get("PIOVERBOSE", 0)):
-                print(
-                    "Found suitable linker scripts: ["
-                    + ", ".join(ldscript_matches)
-                    + "], %s will be used!" % ldscript_file
-                )
-
-        return os.path.join(family_ldscripts_dir, ldscript_file)
-
-    # Fall back to an auto-generated linker script
-    print(
-        "Warning! Cannot find a linker script for the required board! "
-        "An auto-generated script will be used to link firmware!"
-    )
+    if ldscript_match and os.path.isfile(ldscript_match[0]):
+        return ldscript_match[0]
 
     default_ldscript = os.path.join(
         LDSCRIPTS_DIR, board_mcu[0:7], board_mcu[0:11].upper() + "_DEFAULT.ld"
+    )
+
+    print(
+        "Warning! Cannot find a linker script for the required board! "
+        "An auto-generated script will be used to link firmware!"
     )
 
     if not os.path.isfile(default_ldscript):
@@ -162,15 +145,13 @@ def generate_hal_config_file():
 
 
 def build_custom_lib(lib_path, lib_manifest=None):
-    if not os.path.isdir(lib_path):
-        return
     if board.get("build.stm32cube.disable_embedded_libs", "no") == "yes":
         return
     if lib_path:
         lib_manifest = lib_manifest or {"name": os.path.basename(lib_path)}
         env.Append(
             EXTRA_LIB_BUILDERS=[
-                CustomLibBuilder(env, lib_path, lib_manifest.copy())
+                PlatformIOLibBuilder(env, lib_path, lib_manifest.copy())
             ]
         )
 
@@ -200,37 +181,18 @@ def build_usb_libs(usb_libs_root):
             build_custom_lib(os.path.join(usb_class_dir, device_class), manifest)
 
 
-def process_dsp_lib():
-    dsp_lib_path = os.path.join(FRAMEWORK_DIR, "Drivers", "CMSIS", "DSP", "Lib", "GCC")
-    if not os.path.isdir(dsp_lib_path):
-        dsp_lib_path = os.path.join(FRAMEWORK_DIR, "Drivers", "CMSIS", "Lib", "GCC")
-
-    env.Append(
-        CPPPATH=[
-            os.path.join(FRAMEWORK_DIR, "Drivers", "CMSIS", "DSP", "Include"),
-        ],
-        LIBPATH=[
-            dsp_lib_path,
-        ]
-    )
-
-
-machine_flags = [
-    "-mthumb",
-    "-mcpu=%s" % board.get("build.cpu"),
-]
+env.Replace(AS="$CC", ASCOM="$ASPPCOM")
 
 env.Append(
-    ASFLAGS=machine_flags,
-    ASPPFLAGS=[
-        "-x", "assembler-with-cpp",
-    ],
+    ASFLAGS=["-x", "assembler-with-cpp"],
 
-    CCFLAGS=machine_flags + [
+    CCFLAGS=[
         "-Os",  # optimize for size
         "-ffunction-sections",  # place each function in its own section
         "-fdata-sections",
         "-Wall",
+        "-mthumb",
+        "-mcpu=%s" % board.get("build.cpu"),
         "-nostdlib",
     ],
 
@@ -242,6 +204,7 @@ env.Append(
     CPPPATH=[
         "$PROJECT_SRC_DIR",
         "$PROJECT_INCLUDE_DIR",
+        os.path.join(FRAMEWORK_DIR, "Drivers", "CMSIS", "DSP", "Include"),
         os.path.join(FRAMEWORK_DIR, "Drivers", "CMSIS", "Include"),
         os.path.join(
             FRAMEWORK_DIR,
@@ -271,23 +234,28 @@ env.Append(
         "-fno-exceptions"
     ],
 
-    LINKFLAGS=machine_flags + [
+    LINKFLAGS=[
         "-Os",
         "-Wl,--gc-sections,--relax",
+        "-mthumb",
+        "-mcpu=%s" % board.get("build.cpu"),
         "--specs=nano.specs",
         "--specs=nosys.specs",
     ],
 
     LIBPATH=[
-        os.path.join(LDSCRIPTS_DIR, MCU_FAMILY),
+        os.path.join(FRAMEWORK_DIR, "Drivers", "CMSIS", "Lib", "GCC"),
+        os.path.join(FRAMEWORK_DIR, "platformio", "ldscripts"),
     ],
 
     LIBS=["c", "gcc", "m", "stdc++", "nosys"],
 )
 
+# copy CCFLAGS to ASFLAGS (-x assembler-with-cpp mode)
+env.Append(ASFLAGS=env.get("CCFLAGS", [])[:])
+
 if not board.get("build.ldscript", ""):
-    env.Replace(LDSCRIPT_PATH=get_linker_script(
-        board.get("build.mcu", ""), board.get("build.cpu", "")))
+    env.Replace(LDSCRIPT_PATH=get_linker_script(board.get("build.mcu", "")))
 
 #
 # Process BSP components
@@ -295,9 +263,8 @@ if not board.get("build.ldscript", ""):
 
 bsp_dir = os.path.join(FRAMEWORK_DIR, "Drivers", "BSP")
 components_dir = os.path.join(bsp_dir, "Components")
-if os.path.isdir(components_dir):
-    for component in os.listdir(components_dir):
-        build_custom_lib(os.path.join(components_dir, component))
+for component in os.listdir(components_dir):
+    build_custom_lib(os.path.join(components_dir, component))
 
 if os.path.isdir(os.path.join(bsp_dir, "Adafruit_Shield")):
     build_custom_lib(os.path.join(bsp_dir, "Adafruit_Shield"))
@@ -307,25 +274,19 @@ if os.path.isdir(os.path.join(bsp_dir, "Adafruit_Shield")):
 #
 
 utils_dir = os.path.join(FRAMEWORK_DIR, "Utilities")
-if os.path.isdir(utils_dir):
-    for util in os.listdir(utils_dir):
-        util_dir = os.path.join(utils_dir, util)
-        # Some of utilities is not meant to be built
-        if not os.path.isdir(util_dir) or not any(
-            f.endswith((".c", ".h")) for f in os.listdir(util_dir)
-        ):
-            continue
-        build_custom_lib(
-            os.path.join(utils_dir, util),
-            {
-                "name": "Util-%s" % util,
-                "dependencies": [{"name": "FrameworkVariantBSP"}],
-                "build": {
-                    "flags": ["-I $PROJECT_SRC_DIR", "-I $PROJECT_INCLUDE_DIR"],
-                    "libLDFMode": "deep",
-                },
-            },
-        )
+for util in os.listdir(utils_dir):
+    util_dir = os.path.join(utils_dir, util)
+    # Some of utilities is not meant to be built
+    if not any(f.endswith((".c", ".h")) for f in os.listdir(util_dir)):
+        continue
+    build_custom_lib(
+        os.path.join(utils_dir, util),
+        {
+            "name": "Util-%s" % util,
+            "dependencies": [{"name": "FrameworkVariantBSP"}],
+            "build": {"flags": ["-I $PROJECT_SRC_DIR", "-I $PROJECT_INCLUDE_DIR"], "libLDFMode": "deep"},
+        },
+    )
 
 #
 # USB libraries from ST
@@ -351,13 +312,6 @@ if "build.stm32cube.variant" in board:
     )
     if os.path.isdir(bsp_variant_dir):
         build_custom_lib(os.path.join(bsp_variant_dir), {"name": "FrameworkVariantBSP"})
-
-#
-# DSP Library processing
-#
-
-if board.get("build.stm32cube.custom_dsp_library", "no") == "no":
-    process_dsp_lib()
 
 #
 # HAL libraries

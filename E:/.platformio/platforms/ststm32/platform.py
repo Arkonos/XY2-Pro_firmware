@@ -12,15 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
+import json
 import os
-import sys
-import subprocess
+
+from platform import system
 
 from platformio.managers.platform import PlatformBase
-
-
-IS_WINDOWS = sys.platform.startswith("win")
-
+from platformio.util import get_systype
 
 class Ststm32Platform(PlatformBase):
 
@@ -33,7 +32,7 @@ class Ststm32Platform(PlatformBase):
 
         frameworks = variables.get("pioframework", [])
         if "arduino" in frameworks:
-            if board.startswith(("portenta", "opta", "nicla_vision", "giga")):
+            if board.startswith("portenta"):
                 self.frameworks["arduino"]["package"] = "framework-arduino-mbed"
                 self.frameworks["arduino"][
                     "script"
@@ -48,11 +47,17 @@ class Ststm32Platform(PlatformBase):
                 self.packages["framework-arduinoststm32l0"]["optional"] = False
                 self.packages["framework-arduinoststm32"]["optional"] = True
             else:
-                self.packages["toolchain-gccarmnoneeabi"]["version"] = "~1.120301.0"
-                self.packages["framework-cmsis"]["version"] = "~2.50900.0"
+                self.packages["toolchain-gccarmnoneeabi"]["version"] = "~1.90201.0"
+                self.packages["framework-cmsis"]["version"] = "~2.50501.0"
                 self.packages["framework-cmsis"]["optional"] = False
 
         if "mbed" in frameworks:
+            deprecated_boards_file = os.path.join(
+                self.get_dir(), "misc", "mbed_deprecated_boards.json")
+            if os.path.isfile(deprecated_boards_file):
+                with open(deprecated_boards_file) as fp:
+                    if board in json.load(fp):
+                        self.packages["framework-mbed"]["version"] = "~6.51506.0"
             self.packages["toolchain-gccarmnoneeabi"]["version"] = "~1.90201.0"
 
         if "cmsis" in frameworks:
@@ -71,13 +76,7 @@ class Ststm32Platform(PlatformBase):
 
         default_protocol = board_config.get("upload.protocol") or ""
         if variables.get("upload_protocol", default_protocol) == "dfu":
-            dfu_package = "tool-dfuutil"
-            if board.startswith(("portenta", "opta", "nicla", "giga")):
-                dfu_package = "tool-dfuutil-arduino"
-                self.packages.pop("tool-dfuutil")
-            else:
-                self.packages.pop("tool-dfuutil-arduino")
-            self.packages[dfu_package]["optional"] = False
+            self.packages["tool-dfuutil"]["optional"] = False
 
         if board == "mxchip_az3166":
             self.frameworks["arduino"][
@@ -88,10 +87,11 @@ class Ststm32Platform(PlatformBase):
 
         if "zephyr" in variables.get("pioframework", []):
             for p in self.packages:
-                if p in ("tool-cmake", "tool-dtc", "tool-ninja"):
+                if p.startswith("framework-zephyr-") or p in (
+                        "tool-cmake", "tool-dtc", "tool-ninja"):
                     self.packages[p]["optional"] = False
-            self.packages["toolchain-gccarmnoneeabi"]["version"] = "~1.120301.0"
-            if not IS_WINDOWS:
+            self.packages["toolchain-gccarmnoneeabi"]["version"] = "~1.80201.0"
+            if "windows" not in get_systype():
                 self.packages["tool-gperf"]["optional"] = False
 
         # configure J-LINK tool
@@ -110,24 +110,6 @@ class Ststm32Platform(PlatformBase):
 
         return PlatformBase.configure_default_packages(self, variables,
                                                        targets)
-
-    def install_package(self, name, *args, **kwargs):
-        pkg = super().install_package(name, *args, **kwargs)
-        if name != "framework-zephyr":
-            return pkg
-
-        if not os.path.isfile(os.path.join(pkg.path, "_pio", "state.json")):
-            self.pm.log.info("Installing Zephyr project dependencies...")
-            try:
-                subprocess.run([
-                    os.path.normpath(sys.executable),
-                    os.path.join(pkg.path, "scripts", "platformio", "install-deps.py"),
-                    "--platform", self.name
-                ])
-            except subprocess.CalledProcessError:
-                self.pm.log.info("Failed to install Zephyr dependencies!")
-
-        return pkg
 
     def get_boards(self, id_=None):
         result = PlatformBase.get_boards(self, id_)
@@ -170,12 +152,12 @@ class Ststm32Platform(PlatformBase):
                             "-port", "2331"
                         ],
                         "executable": ("JLinkGDBServerCL.exe"
-                                       if IS_WINDOWS else
+                                       if system() == "Windows" else
                                        "JLinkGDBServer")
                     }
                 }
             else:
-                server_args = ["-s", "$PACKAGE_DIR/openocd/scripts"]
+                server_args = ["-s", "$PACKAGE_DIR/scripts"]
                 if debug.get("openocd_board"):
                     server_args.extend([
                         "-f", "board/%s.cfg" % debug.get("openocd_board")
@@ -204,14 +186,19 @@ class Ststm32Platform(PlatformBase):
         board.manifest["debug"] = debug
         return board
 
-    def configure_debug_session(self, debug_config):
-        if debug_config.speed:
-            server_executable = (debug_config.server or {}).get("executable", "").lower()
+    def configure_debug_options(self, initial_debug_options, ide_data):
+        debug_options = copy.deepcopy(initial_debug_options)
+        adapter_speed = initial_debug_options.get("speed")
+        if adapter_speed:
+            server_options = debug_options.get("server") or {}
+            server_executable = server_options.get("executable", "").lower()
             if "openocd" in server_executable:
-                debug_config.server["arguments"].extend(
-                    ["-c", "adapter speed %s" % debug_config.speed]
+                debug_options["server"]["arguments"].extend(
+                    ["-c", "adapter speed %s" % adapter_speed]
                 )
             elif "jlink" in server_executable:
-                debug_config.server["arguments"].extend(
-                    ["-speed", debug_config.speed]
+                debug_options["server"]["arguments"].extend(
+                    ["-speed", adapter_speed]
                 )
+
+        return debug_options

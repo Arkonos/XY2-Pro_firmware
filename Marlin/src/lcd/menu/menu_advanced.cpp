@@ -40,21 +40,10 @@
   #include "../../module/probe.h"
 #endif
 
-#if ANY(PIDTEMP, PIDTEMPBED, PIDTEMPCHAMBER)
-  #include "../../module/temperature.h"
-#endif
-
-#if HAS_FILAMENT_RUNOUT_DISTANCE
-  #include "../../feature/runout.h"
-#endif
-
 #if ENABLED(SD_FIRMWARE_UPDATE)
   #include "../../module/settings.h"
 #endif
 
-#if ENABLED(PASSWORD_FEATURE)
-  #include "../../feature/password/password.h"
-#endif
 
 void menu_tmc();
 void menu_backlash();
@@ -100,156 +89,9 @@ void menu_backlash();
 
 #endif
 
-#if DISABLED(NO_VOLUMETRICS) || ENABLED(ADVANCED_PAUSE_FEATURE)
-  //
-  // Advanced Settings > Filament
-  //
-  void menu_advanced_filament() {
-    START_MENU();
-    BACK_ITEM(MSG_ADVANCED_SETTINGS);
-
-    #if ENABLED(LIN_ADVANCE)
-      #if EXTRUDERS == 1
-        EDIT_ITEM(float42_52, MSG_ADVANCE_K, &planner.extruder_advance_K[0], 0, 10);
-      #elif HAS_MULTI_EXTRUDER
-        EXTRUDER_LOOP()
-          EDIT_ITEM_N(float42_52, e, MSG_ADVANCE_K_E, &planner.extruder_advance_K[e], 0, 10);
-      #endif
-    #endif
-
-    #if DISABLED(NO_VOLUMETRICS)
-      EDIT_ITEM(bool, MSG_VOLUMETRIC_ENABLED, &parser.volumetric_enabled, planner.calculate_volumetric_multipliers);
-
-      #if ENABLED(VOLUMETRIC_EXTRUDER_LIMIT)
-        EDIT_ITEM_FAST(float42_52, MSG_VOLUMETRIC_LIMIT, &planner.volumetric_extruder_limit[active_extruder], 0.0f, 20.0f, planner.calculate_volumetric_extruder_limits);
-        #if HAS_MULTI_EXTRUDER
-          EXTRUDER_LOOP()
-            EDIT_ITEM_FAST_N(float42_52, e, MSG_VOLUMETRIC_LIMIT_E, &planner.volumetric_extruder_limit[e], 0.0f, 20.00f, planner.calculate_volumetric_extruder_limits);
-        #endif
-      #endif
-
-      if (parser.volumetric_enabled) {
-        EDIT_ITEM_FAST(float43, MSG_FILAMENT_DIAM, &planner.filament_size[active_extruder], 1.5f, 3.25f, planner.calculate_volumetric_multipliers);
-        #if HAS_MULTI_EXTRUDER
-          EXTRUDER_LOOP()
-            EDIT_ITEM_FAST_N(float43, e, MSG_FILAMENT_DIAM_E, &planner.filament_size[e], 1.5f, 3.25f, planner.calculate_volumetric_multipliers);
-        #endif
-      }
-    #endif
-
-    #if ENABLED(ADVANCED_PAUSE_FEATURE)
-      constexpr float extrude_maxlength = TERN(PREVENT_LENGTHY_EXTRUDE, EXTRUDE_MAXLENGTH, 999);
-
-      EDIT_ITEM_FAST(float4, MSG_FILAMENT_UNLOAD, &fc_settings[active_extruder].unload_length, 0, extrude_maxlength);
-      #if HAS_MULTI_EXTRUDER
-        EXTRUDER_LOOP()
-          EDIT_ITEM_FAST_N(float4, e, MSG_FILAMENTUNLOAD_E, &fc_settings[e].unload_length, 0, extrude_maxlength);
-      #endif
-
-      EDIT_ITEM_FAST(float4, MSG_FILAMENT_LOAD, &fc_settings[active_extruder].load_length, 0, extrude_maxlength);
-      #if HAS_MULTI_EXTRUDER
-        EXTRUDER_LOOP()
-          EDIT_ITEM_FAST_N(float4, e, MSG_FILAMENTLOAD_E, &fc_settings[e].load_length, 0, extrude_maxlength);
-      #endif
-    #endif
-
-    #if HAS_FILAMENT_RUNOUT_DISTANCE
-      editable.decimal = runout.runout_distance();
-      EDIT_ITEM_FAST(float3, MSG_RUNOUT_DISTANCE_MM, &editable.decimal, 1, 999,
-        []{ runout.set_runout_distance(editable.decimal); }, true
-      );
-    #endif
-
-    END_MENU();
-  }
-
-#endif // !NO_VOLUMETRICS || ADVANCED_PAUSE_FEATURE
-
 //
 // Advanced Settings > Temperature helpers
 //
-
-#if ENABLED(PID_AUTOTUNE_MENU)
-
-  #if ENABLED(PIDTEMP)
-    int16_t autotune_temp[HOTENDS] = ARRAY_BY_HOTENDS1(PREHEAT_1_TEMP_HOTEND);
-  #endif
-  #if ENABLED(PIDTEMPBED)
-    int16_t autotune_temp_bed = PREHEAT_1_TEMP_BED;
-  #endif
-  #if ENABLED(PIDTEMPCHAMBER)
-    int16_t autotune_temp_chamber = PREHEAT_1_TEMP_CHAMBER;
-  #endif
-
-  #include "../../gcode/queue.h"
-
-  void _lcd_autotune(const heater_id_t hid) {
-    char cmd[30];
-    int16_t tune_temp;
-    switch (hid) {
-      #if ENABLED(PIDTEMPBED)
-        case H_BED: tune_temp = autotune_temp_bed; break;
-      #endif
-      #if ENABLED(PIDTEMPCHAMBER)
-        case H_CHAMBER: tune_temp = autotune_temp_chamber; break;
-      #endif
-      default:
-        #if ENABLED(PIDTEMP)
-          tune_temp = autotune_temp[hid]; break;
-        #else
-          return;
-        #endif
-    }
-    sprintf_P(cmd, PSTR("M303 U1 E%i S%i"), hid, tune_temp);
-    queue.inject(cmd);
-    ui.return_to_status();
-  }
-
-#endif // PID_AUTOTUNE_MENU
-
-#if ENABLED(PID_EDIT_MENU)
-
-  float raw_Ki, raw_Kd; // place-holders for Ki and Kd edits
-
-  // Helpers for editing PID Ki & Kd values
-  // grab the PID value out of the temp variable; scale it; then update the PID driver
-  void copy_and_scalePID_i(const int8_t e) {
-    switch (e) {
-      #if ENABLED(PIDTEMPBED)
-        case H_BED: thermalManager.temp_bed.pid.Ki = scalePID_i(raw_Ki); break;
-      #endif
-      #if ENABLED(PIDTEMPCHAMBER)
-        case H_CHAMBER: thermalManager.temp_chamber.pid.Ki = scalePID_i(raw_Ki); break;
-      #endif
-      default:
-        #if ENABLED(PIDTEMP)
-          PID_PARAM(Ki, e) = scalePID_i(raw_Ki);
-          thermalManager.updatePID();
-        #endif
-        break;
-    }
-  }
-  void copy_and_scalePID_d(const int8_t e) {
-    switch (e) {
-      #if ENABLED(PIDTEMPBED)
-        case H_BED: thermalManager.temp_bed.pid.Kd = scalePID_d(raw_Kd); break;
-      #endif
-      #if ENABLED(PIDTEMPCHAMBER)
-        case H_CHAMBER: thermalManager.temp_chamber.pid.Kd = scalePID_d(raw_Kd); break;
-      #endif
-      default:
-        #if ENABLED(PIDTEMP)
-          PID_PARAM(Kd, e) = scalePID_d(raw_Kd);
-          thermalManager.updatePID();
-        #endif
-        break;
-    }
-  }
-#endif
-
-#if BOTH(AUTOTEMP, HAS_TEMP_HOTEND) || ANY(PID_AUTOTUNE_MENU, PID_EDIT_MENU, MPC_AUTOTUNE_MENU, MPC_EDIT_MENU)
-  #define SHOW_MENU_ADVANCED_TEMPERATURE 1
-#endif
 
 //
 // Advanced Settings > Temperature
@@ -289,117 +131,7 @@ void menu_backlash();
     // PID-P E5, PID-I E5, PID-D E5, PID-C E5, PID Autotune E5
     //
 
-    #if BOTH(PIDTEMP, PID_EDIT_MENU)
-      #define __PID_HOTEND_MENU_ITEMS(N) \
-        raw_Ki = unscalePID_i(PID_PARAM(Ki, N)); \
-        raw_Kd = unscalePID_d(PID_PARAM(Kd, N)); \
-        EDIT_ITEM_FAST_N(float41sign, N, MSG_PID_P_E, &PID_PARAM(Kp, N), 1, 9990); \
-        EDIT_ITEM_FAST_N(float52sign, N, MSG_PID_I_E, &raw_Ki, 0.01f, 9990, []{ copy_and_scalePID_i(N); }); \
-        EDIT_ITEM_FAST_N(float41sign, N, MSG_PID_D_E, &raw_Kd, 1, 9990, []{ copy_and_scalePID_d(N); })
-
-      #if ENABLED(PID_EXTRUSION_SCALING)
-        #define _PID_HOTEND_MENU_ITEMS(N) \
-          __PID_HOTEND_MENU_ITEMS(N); \
-          EDIT_ITEM_N(float4, N, MSG_PID_C_E, &PID_PARAM(Kc, N), 1, 9990)
-      #else
-        #define _PID_HOTEND_MENU_ITEMS(N) __PID_HOTEND_MENU_ITEMS(N)
-      #endif
-
-      #if ENABLED(PID_FAN_SCALING)
-        #define _HOTEND_PID_EDIT_MENU_ITEMS(N) \
-          _PID_HOTEND_MENU_ITEMS(N); \
-          EDIT_ITEM_N(float4, N, MSG_PID_F_E, &PID_PARAM(Kf, N), 1, 9990)
-      #else
-        #define _HOTEND_PID_EDIT_MENU_ITEMS(N) _PID_HOTEND_MENU_ITEMS(N)
-      #endif
-
-    #else
-
-      #define _HOTEND_PID_EDIT_MENU_ITEMS(N) NOOP
-
-    #endif
-
-    #if ENABLED(PID_EDIT_MENU) && EITHER(PIDTEMPBED, PIDTEMPCHAMBER)
-      #define _PID_EDIT_ITEMS_TMPL(N,T) \
-        raw_Ki = unscalePID_i(T.pid.Ki); \
-        raw_Kd = unscalePID_d(T.pid.Kd); \
-        EDIT_ITEM_FAST_N(float41sign, N, MSG_PID_P_E, &T.pid.Kp, 1, 9990); \
-        EDIT_ITEM_FAST_N(float52sign, N, MSG_PID_I_E, &raw_Ki, 0.01f, 9990, []{ copy_and_scalePID_i(N); }); \
-        EDIT_ITEM_FAST_N(float41sign, N, MSG_PID_D_E, &raw_Kd, 1, 9990, []{ copy_and_scalePID_d(N); })
-    #endif
-
-    #if ENABLED(PIDTEMP)
-      #if ENABLED(PID_AUTOTUNE_MENU)
-        #define HOTEND_PID_EDIT_MENU_ITEMS(N) \
-          _HOTEND_PID_EDIT_MENU_ITEMS(N); \
-          EDIT_ITEM_FAST_N(int3, N, MSG_PID_AUTOTUNE_E, &autotune_temp[N], 150, thermalManager.hotend_max_target(N), []{ _lcd_autotune(heater_id_t(MenuItemBase::itemIndex)); });
-      #else
-        #define HOTEND_PID_EDIT_MENU_ITEMS(N) _HOTEND_PID_EDIT_MENU_ITEMS(N);
-      #endif
-
-      HOTEND_PID_EDIT_MENU_ITEMS(0);
-      #if ENABLED(PID_PARAMS_PER_HOTEND)
-        REPEAT_S(1, HOTENDS, HOTEND_PID_EDIT_MENU_ITEMS);
-      #endif
-    #endif
-
-    #if ENABLED(MPC_EDIT_MENU)
-
-      #define _MPC_EDIT_ITEMS(N) \
-        EDIT_ITEM_FAST_N(float31sign, N, MSG_MPC_POWER_E, &c.heater_power, 1, 200); \
-        EDIT_ITEM_FAST_N(float31sign, N, MSG_MPC_BLOCK_HEAT_CAPACITY_E, &c.block_heat_capacity, 0, 40); \
-        EDIT_ITEM_FAST_N(float43, N, MSG_SENSOR_RESPONSIVENESS_E, &c.sensor_responsiveness, 0, 1); \
-        EDIT_ITEM_FAST_N(float43, N, MSG_MPC_AMBIENT_XFER_COEFF_E, &c.ambient_xfer_coeff_fan0, 0, 1)
-
-      #if ENABLED(MPC_INCLUDE_FAN)
-        #define MPC_EDIT_ITEMS(N) \
-          _MPC_EDIT_ITEMS(N); \
-          EDIT_ITEM_FAST_N(float43, N, MSG_MPC_AMBIENT_XFER_COEFF_FAN_E, &editable.decimal, 0, 1, []{ \
-            MPC_t &c = thermalManager.temp_hotend[MenuItemBase::itemIndex].constants; \
-            c.fan255_adjustment = editable.decimal - c.ambient_xfer_coeff_fan0; \
-          })
-      #else
-        #define MPC_EDIT_ITEMS _MPC_EDIT_ITEMS
-      #endif
-
-      #if HAS_MULTI_HOTEND
-        static auto mpc_edit_hotend = [](const uint8_t e) {
-          MPC_EDIT_DEFS(e);
-          START_MENU();
-          BACK_ITEM(MSG_TEMPERATURE);
-          MPC_EDIT_ITEMS(e);
-          END_MENU();
-        };
-        #define MPC_ENTRY(N) SUBMENU_N(N, MSG_MPC_EDIT, []{ mpc_edit_hotend(MenuItemBase::itemIndex); });
-      #else
-        #define MPC_ENTRY MPC_EDIT_ITEMS
-      #endif
-
-      REPEAT(HOTENDS, MPC_ENTRY);
-
-    #endif // MPC_EDIT_MENU
-
-    #if ENABLED(MPC_AUTOTUNE_MENU)
-      ACTION_ITEM(MSG_MPC_AUTOTUNE, []{ queue.inject(F("M306 T")); ui.return_to_status(); });
-    #endif
-
-    #if ENABLED(PIDTEMPBED)
-      #if ENABLED(PID_EDIT_MENU)
-        _PID_EDIT_ITEMS_TMPL(H_BED, thermalManager.temp_bed);
-      #endif
-      #if ENABLED(PID_AUTOTUNE_MENU)
-        EDIT_ITEM_FAST_N(int3, H_BED, MSG_PID_AUTOTUNE_E, &autotune_temp_bed, PREHEAT_1_TEMP_BED, BED_MAX_TARGET, []{ _lcd_autotune(H_BED); });
-      #endif
-    #endif
-
-    #if ENABLED(PIDTEMPCHAMBER)
-      #if ENABLED(PID_EDIT_MENU)
-        _PID_EDIT_ITEMS_TMPL(H_CHAMBER, thermalManager.temp_chamber);
-      #endif
-      #if ENABLED(PID_AUTOTUNE_MENU)
-        EDIT_ITEM_FAST_N(int3, H_CHAMBER, MSG_PID_AUTOTUNE_E, &autotune_temp_chamber, PREHEAT_1_TEMP_CHAMBER, CHAMBER_MAX_TARGET, []{ _lcd_autotune(H_CHAMBER); });
-      #endif
-    #endif
+    #define _HOTEND_PID_EDIT_MENU_ITEMS(N) NOOP
 
     END_MENU();
   }
@@ -475,11 +207,6 @@ void menu_backlash();
     // M204 P Acceleration
     EDIT_ITEM_FAST(float5_25, MSG_ACC, &planner.settings.acceleration, 25, max_accel);
 
-    #if HAS_EXTRUDERS
-      // M204 R Retract Acceleration
-      EDIT_ITEM_FAST(float5, MSG_A_RETRACT, &planner.settings.retract_acceleration, 100, planner.settings.max_acceleration_mm_per_s2[E_AXIS_N(active_extruder)]);
-    #endif
-
     // M204 T Travel Acceleration
     EDIT_ITEM_FAST(float5_25, MSG_A_TRAVEL, &planner.settings.travel_acceleration, 25, max_accel);
 
@@ -534,7 +261,7 @@ void menu_backlash();
       ;
 
       LOOP_LOGICAL_AXES(a) {
-        if (a == C_AXIS || TERN0(HAS_EXTRUDERS, a == E_AXIS))
+        if (a == C_AXIS)
           EDIT_ITEM_FAST_N(float52sign, a, MSG_VN_JERK, &planner.max_jerk[a], 0.1f, max_jerk_edit[a]);
         else
           EDIT_ITEM_FAST_N(float3, a, MSG_VN_JERK, &planner.max_jerk[a], 1.0f, max_jerk_edit[a]);
@@ -606,13 +333,6 @@ void menu_advanced_settings() {
 
   #if DISABLED(SLIM_LCD_MENUS)
 
-    #if HAS_M206_COMMAND
-      //
-      // Set Home Offsets
-      //
-      ACTION_ITEM(MSG_SET_HOME_OFFSETS, []{ queue.inject(F("M428")); ui.return_to_status(); });
-    #endif
-
     // M203 / M205 - Feedrate items
     SUBMENU(MSG_MAX_SPEED, menu_advanced_velocity);
 
@@ -650,28 +370,8 @@ void menu_advanced_settings() {
     SUBMENU(MSG_DRIVE_STRENGTH, menu_pwm);
   #endif
 
-  #if HAS_TRINAMIC_CONFIG
-    SUBMENU(MSG_TMC_DRIVERS, menu_tmc);
-  #endif
-
   #if SHOW_MENU_ADVANCED_TEMPERATURE
     SUBMENU(MSG_TEMPERATURE, menu_advanced_temperature);
-  #endif
-
-  #if DISABLED(NO_VOLUMETRICS) || ENABLED(ADVANCED_PAUSE_FEATURE)
-    SUBMENU(MSG_FILAMENT, menu_advanced_filament);
-  #elif ENABLED(LIN_ADVANCE)
-    #if EXTRUDERS == 1
-      EDIT_ITEM(float42_52, MSG_ADVANCE_K, &planner.extruder_advance_K[0], 0, 10);
-    #elif HAS_MULTI_EXTRUDER
-      LOOP_L_N(n, E_STEPPERS)
-        EDIT_ITEM_N(float42_52, n, MSG_ADVANCE_K_E, &planner.extruder_advance_K[n], 0, 10);
-    #endif
-  #endif
-
-  // M540 S - Abort on endstop hit when SD printing
-  #if ENABLED(SD_ABORT_ON_ENDSTOP_HIT)
-    EDIT_ITEM(bool, MSG_ENDSTOP_ABORT, &planner.abort_on_endstop_hit);
   #endif
 
   #if ENABLED(SD_FIRMWARE_UPDATE)
@@ -685,10 +385,6 @@ void menu_advanced_settings() {
       ui.return_to_status();
       if (new_state) LCD_MESSAGE(MSG_RESET_PRINTER); else ui.reset_status();
     });
-  #endif
-
-  #if ENABLED(PASSWORD_FEATURE)
-    SUBMENU(MSG_PASSWORD_SETTINGS, password.access_menu_password);
   #endif
 
   #if ENABLED(EEPROM_SETTINGS) && DISABLED(SLIM_LCD_MENUS)

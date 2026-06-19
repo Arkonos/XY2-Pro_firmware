@@ -38,9 +38,7 @@ typedef void (*selectFunc_t)();
 #define SS_INVERT  0x02
 #define SS_DEFAULT SS_CENTER
 
-#if ENABLED(BABYSTEP_ZPROBE_OFFSET) && Z_PROBE_OFFSET_RANGE_MIN >= -9 && Z_PROBE_OFFSET_RANGE_MAX <= 9
-  #define BABYSTEP_TO_STR(N) ftostr43sign(N)
-#elif ENABLED(BABYSTEPPING)
+#if ENABLED(BABYSTEPPING)
   #define BABYSTEP_TO_STR(N) ftostr53sign(N)
 #endif
 
@@ -190,25 +188,12 @@ class MenuEditItemBase : public MenuItemBase {
     static void draw_edit_screen(const char * const value) { draw_edit_screen(editLabel, value); }
 };
 
-#if ENABLED(SDSUPPORT)
-  class CardReader;
-  class MenuItem_sdbase {
-    public:
-      // Implemented for HD44780 and DOGM
-      static void draw(const bool sel, const uint8_t row, FSTR_P const fstr, CardReader &theCard, const bool isDir);
-  };
-#endif
-
 ////////////////////////////////////////////
 /////////////// Menu Screens ///////////////
 ////////////////////////////////////////////
 
 void menu_main();
 void menu_move();
-
-#if ENABLED(SDSUPPORT)
-  void menu_media();
-#endif
 
 ////////////////////////////////////////////
 //////// Menu Item Helper Functions ////////
@@ -236,11 +221,7 @@ void _lcd_draw_homing();
 #endif
 
 #if ENABLED(BABYSTEPPING)
-  #if ENABLED(BABYSTEP_ZPROBE_OFFSET)
-    void lcd_babystep_zoffset();
-  #else
-    void lcd_babystep_z();
-  #endif
+  void lcd_babystep_z();
 
   #if ENABLED(BABYSTEP_MILLIMETER_UNITS)
     #define BABYSTEP_SIZE_X int32_t((BABYSTEP_MULTIPLICATOR_XY) * planner.settings.axis_steps_per_mm[X_AXIS])

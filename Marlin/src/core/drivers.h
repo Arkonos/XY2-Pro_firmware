@@ -163,9 +163,6 @@
                           || AXIS_HAS_##T(U) || AXIS_HAS_##T(V)  || AXIS_HAS_##T(W) \
                           || E_AXIS_HAS(T) )
 
-#if ANY_AXIS_HAS(STEALTHCHOP)
-  #define HAS_STEALTHCHOP 1
-#endif
 #if ANY_AXIS_HAS(STALLGUARD)
   #define HAS_STALLGUARD 1
 #endif

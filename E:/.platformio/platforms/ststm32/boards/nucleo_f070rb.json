@@ -1,7 +1,7 @@
 {
   "build": {
     "cpu": "cortex-m0",
-    "extra_flags": "-DSTM32F0 -DSTM32F070xB",
+    "extra_flags": "-DSTM32F070xB",
     "f_cpu": "48000000L",
     "mcu": "stm32f070rbt6",
     "product_line": "STM32F070xB"
@@ -16,7 +16,7 @@
     ],
     "openocd_board": "st_nucleo_f0",
     "openocd_target": "stm32f0x",
-    "svd_path": "STM32F0x0.svd"
+    "svd_path": "STM32F0xx.svd"
   },
   "frameworks": [
     "cmsis",

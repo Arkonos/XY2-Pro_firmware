@@ -109,7 +109,7 @@ void TFT_String::add(const char *tpl, const int8_t index, const char *cstr/*=nul
         add_character('0' + inum);
       }
       else
-        add(index == -2 ? GET_TEXT_F(MSG_CHAMBER) : GET_TEXT_F(MSG_BED));
+        add(GET_TEXT_F(MSG_BED));
     }
     else if (ch == '$' && fstr)
       add(fstr);

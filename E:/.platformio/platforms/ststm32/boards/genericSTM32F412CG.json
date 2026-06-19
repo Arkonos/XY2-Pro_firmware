@@ -2,11 +2,11 @@
   "build": {
     "core": "stm32",
     "cpu": "cortex-m4",
-    "extra_flags": "-DSTM32F4 -DSTM32F412Cx -DSTM32F4xx",
+    "extra_flags": "-DSTM32F412Cx -DSTM32F4xx",
     "f_cpu": "100000000L",
-    "mcu": "stm32f412cgu6",
+    "mcu": "stm32f412cg",
     "product_line": "STM32F412Cx",
-    "variant": "STM32F4xx/F412C(E-G)U"
+    "variant": "Generic_F412Cx"
   },
   "debug": {
     "jlink_device": "STM32F412CG",

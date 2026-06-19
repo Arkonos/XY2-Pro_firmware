@@ -29,7 +29,7 @@
 
 ## FAQ
 
-  1. If you want to switch back to the original interface of Marlin, just define "#define TRONXY_UI" in "Marlin/TronxyMachine.h" as UI_MARLIN_DEFAULT
+  1. If you want to switch back to the original interface of Marlin, just define "#define TRONX Y_UI" in "Marlin/TronxyMachine.h" as UI_MARLIN_DEFAULT
 <img align="center" width=482 src="buildroot/share/pixmaps/tronxy/default_ui.png" />
 
   2. If you encounter problems like " multiple definition of 'EXTI1_IRQHandler' " as shown below, please find the location of the file in the figure below

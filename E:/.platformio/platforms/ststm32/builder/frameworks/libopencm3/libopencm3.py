@@ -83,13 +83,13 @@ def parse_makefile_data(makefile):
             data["includes"].append(match.group(1))
 
         # fetch "vpath"s
-        re_vpath = re.compile(r"^VPATH\s*\+?=\s*([^\r\n]+)", re.M)
+        re_vpath = re.compile(r"^VPATH\s+\+?=\s+([^\r\n]+)", re.M)
         for match in re_vpath.finditer(content):
             data["vpath"] += match.group(1).split(":")
 
         # fetch obj files
         objs_match = re.search(
-            r"^OBJS\s*\+?=\s*([^\.]+\.o\s*(?:\s+\\s+)?)+", content, re.M)
+            r"^OBJS\s+\+?=\s+([^\.]+\.o\s*(?:\s+\\s+)?)+", content, re.M)
         assert objs_match
         data["objs"] = re.sub(
             r"(OBJS|[\+=\\\s]+)", "\n", objs_match.group(0)).split()
@@ -189,16 +189,8 @@ elif platform == "siliconlabsefm32":
 
 generate_nvic_files()
 
-machine_flags = [
-    "-mthumb",
-    "-mcpu=%s" % board.get("build.cpu"),
-]
-
 env.Append(
-    ASFLAGS=machine_flags,
-    ASPPFLAGS=[
-        "-x", "assembler-with-cpp",
-    ],
+    ASFLAGS=["-x", "assembler-with-cpp"],
 
     CFLAGS=[
         "-Wimplicit-function-declaration",
@@ -206,7 +198,7 @@ env.Append(
         "-Wstrict-prototypes"
     ],
 
-    CCFLAGS=machine_flags + [
+    CCFLAGS=[
         "-Os",  # optimize for size
         "-ffunction-sections",  # place each function in its own section
         "-fdata-sections",
@@ -215,6 +207,8 @@ env.Append(
         "-Wredundant-decls",
         "-Wshadow",
         "-fno-common",
+        "-mthumb",
+        "-mcpu=%s" % board.get("build.cpu")
     ],
 
     CXXFLAGS=[
@@ -232,9 +226,11 @@ env.Append(
         join(FRAMEWORK_DIR, "include")
     ],
 
-    LINKFLAGS=machine_flags + [
+    LINKFLAGS=[
         "-Os",
         "-Wl,--gc-sections",
+        "-mthumb",
+        "-mcpu=%s" % board.get("build.cpu"),
         "-nostartfiles",
         "--static",
         "--specs=nano.specs",
@@ -256,11 +252,6 @@ if board.get("build.cpu", "") in ("cortex-m4", "cortex-m7"):
         fpv_version = "5-sp"
 
     env.Append(
-        ASFLAGS=[
-            "-mfloat-abi=hard",
-            "-mfpu=fpv%s-d16" % fpv_version
-        ],
-
         CCFLAGS=[
             "-mfloat-abi=hard",
             "-mfpu=fpv%s-d16" % fpv_version
@@ -271,6 +262,9 @@ if board.get("build.cpu", "") in ("cortex-m4", "cortex-m7"):
             "-mfpu=fpv%s-d16" % fpv_version
         ]
     )
+
+# copy CCFLAGS to ASFLAGS (-x assembler-with-cpp mode)
+env.Append(ASFLAGS=env.get("CCFLAGS", [])[:])
 
 if not board.get("build.ldscript", ""):
     ldscript = generate_ldscript(get_ld_device(platform))

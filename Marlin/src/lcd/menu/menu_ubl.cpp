@@ -405,14 +405,6 @@ void ubl_map_move_to_xy() {
   // Some printers have unreachable areas in the mesh. Skip the move if unreachable.
   if (!position_is_reachable(xy)) return;
 
-  #if ENABLED(DELTA)
-    if (current_position.z > delta_clip_start_height) { // Make sure the delta has fully free motion
-      destination = current_position;
-      destination.z = delta_clip_start_height;
-      prepare_internal_fast_move_to_destination(homing_feedrate(Z_AXIS)); // Set current_position from destination
-    }
-  #endif
-
   // Use the built-in manual move handler to move to the mesh point.
   ui.manual_move.set_destination(xy);
   ui.manual_move.soon(ALL_AXES_ENUM);
@@ -441,38 +433,10 @@ void ubl_map_screen() {
 
     ui.defer_status_screen();
 
-    #if IS_KINEMATIC
-      // Index of the mesh point upon entry
-      const int32_t old_pos_index = grid_index(x_plot, y_plot);
-      // Direction from new (unconstrained) encoder value
-      const int8_t step_dir = int32_t(ui.encoderPosition) < old_pos_index ? -1 : 1;
-    #endif
-
-    do {
-      // Now, keep the encoder position within range
-      if (int32_t(ui.encoderPosition) < 0) ui.encoderPosition = GRID_MAX_POINTS + TERN(TOUCH_SCREEN, ui.encoderPosition, -1);
-      if (int32_t(ui.encoderPosition) > GRID_MAX_POINTS - 1) ui.encoderPosition = TERN(TOUCH_SCREEN, ui.encoderPosition - GRID_MAX_POINTS, 0);
-
-      // Draw the grid point based on the encoder
-      x = ui.encoderPosition % (GRID_MAX_POINTS_X);
-      y = ui.encoderPosition / (GRID_MAX_POINTS_X);
-
-      // Validate if needed
-      #if IS_KINEMATIC
-        const xy_pos_t xy = { bedlevel.get_mesh_x(x), bedlevel.get_mesh_y(y) };
-        if (position_is_reachable(xy)) break; // Found a valid point
-        ui.encoderPosition += step_dir;       // Test the next point
-      #endif
-    } while (ENABLED(IS_KINEMATIC));
-
     // Determine number of points to edit
-    #if IS_KINEMATIC
-      n_edit_pts = 9; // TODO: Delta accessible edit points
-    #else
-      const bool xc = WITHIN(x, 1, (GRID_MAX_POINTS_X) - 2),
-                 yc = WITHIN(y, 1, (GRID_MAX_POINTS_Y) - 2);
-      n_edit_pts = yc ? (xc ? 9 : 6) : (xc ? 6 : 4); // Corners
-    #endif
+    const bool xc = WITHIN(x, 1, (GRID_MAX_POINTS_X) - 2),
+                yc = WITHIN(y, 1, (GRID_MAX_POINTS_Y) - 2);
+    n_edit_pts = yc ? (xc ? 9 : 6) : (xc ? 6 : 4); // Corners
 
     // Refresh is also set by encoder movement
     //if (int32_t(ui.encoderPosition) != grid_index(x, y))

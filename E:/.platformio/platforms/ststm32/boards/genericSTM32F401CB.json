@@ -2,11 +2,11 @@
   "build": {
     "core": "stm32",
     "cpu": "cortex-m4",
-    "extra_flags": "-DSTM32F4 -DSTM32F401xC -DSTM32F4xx",
+    "extra_flags": "-DSTM32F401xC -DSTM32F4xx",
     "f_cpu": "84000000L",
-    "mcu": "stm32f401cbu6",
+    "mcu": "stm32f401cb",
     "product_line": "STM32F401xC",
-    "variant": "STM32F4xx/F401CC(F-U-Y)_F401C(B-D-E)(U-Y)"
+    "variant": "Generic_F401Cx"
   },
   "debug": {
     "jlink_device": "STM32F401CB",

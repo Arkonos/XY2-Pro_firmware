@@ -9,7 +9,7 @@
     },
     "mcu": "stm32f407vgt6",
     "product_line": "STM32F407xx",
-    "variant": "STM32F4xx/F407V(E-G)T_F417V(E-G)T"
+    "variant": "DIYMORE_F407VGT"
   },
   "debug": {
     "jlink_device": "STM32F407VG",
@@ -25,7 +25,7 @@
   "name": "F407VG",
   "upload": {
     "maximum_ram_size": 131072,
-    "maximum_size": 1048576,
+    "maximum_size": 524288,
     "protocol": "stlink",
     "protocols": [
       "jlink",

@@ -1,12 +1,11 @@
 {
   "build": {
-    "core": "stm32",
     "cpu": "cortex-m4",
-    "extra_flags": "-DSTM32F3 -DSTM32F303xE",
+    "extra_flags": "-DSTM32F303xE",
     "f_cpu": "72000000L",
     "mcu": "stm32f303ret6",
     "product_line": "STM32F303xE",
-    "variant": "STM32F3xx/F303R(D-E)T"
+    "variant": "NUCLEO_F303RE"
   },
   "debug": {
     "default_tools": [

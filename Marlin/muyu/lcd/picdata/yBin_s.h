@@ -15,14 +15,11 @@ extern const PicAttr Bin_factory40x40;
 extern const PicAttr Bin_theme40x40;
 extern const PicAttr Bin_printmode40x40;
 extern const PicAttr Bin_fixDulZStop40x40;
-extern const PicAttr Bin_wifi40x40;
-extern const PicAttr Bin_wifi32x32;
 extern const PicAttr Bin_alarm32x32;
 
 extern const PicAttr Bin_fan32x32;
 extern const PicAttr Bin_manual32x32;
 extern const PicAttr Bin_preheat32x32;
-extern const PicAttr Bin_filament32x32;
 extern const PicAttr Bin_level32x32;
 extern const PicAttr Bin_stop32x32;
 extern const PicAttr Bin_Z32x32;

@@ -29,12 +29,6 @@
 #include "../../module/planner.h"
 #include "../../module/temperature.h"
 
-#if ENABLED(DELTA)
-  #include "../../module/delta.h"
-#elif ENABLED(SCARA)
-  #include "../../module/scara.h"
-#endif
-
 #if N_ARC_CORRECTION < 1
   #undef N_ARC_CORRECTION
   #define N_ARC_CORRECTION 1
@@ -218,9 +212,6 @@ void plan_arc(
 
   // Add hints to help optimize the move
   PlannerHints hints;
-  #if ENABLED(SCARA_FEEDRATE_SCALING)
-    hints.inv_duration = (scaled_fr_mm_s / flat_mm) * segments;
-  #endif
 
   /**
    * Vector rotation by transformation matrix: r is the original vector, r_T is the rotated vector,
@@ -435,7 +426,7 @@ void GcodeSuite::G2_G3(const bool clockwise) {
       relative_mode = true;
     #endif
 
-    get_destination_from_command();   // Get X Y [Z[I[J[K...]]]] [E] F (and set cutter power)
+    get_destination_from_command();   // Get X Y [Z[I[J[K...]]]] [E] F
 
     TERN_(SF_ARC_FIX, relative_mode = relative_mode_backup);
 

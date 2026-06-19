@@ -2049,7 +2049,6 @@
 #define UHS_VID_DINGING_TECHNOLOGY 0x10bcU // Dinging Technology Co., Ltd
 #define UHS_VID_TMT_TECHNOLOGY 0x10bdU // TMT Technology, Inc.
 #define UHS_VID_SMARTHOME 0x10bfU // SmartHome
-#define UHS_VID_UNIVERSAL_LASER_SYSTEMS 0x10c3U // Universal Laser Systems, Inc.
 #define UHS_VID_CYGNAL_INTEGRATED_PRODUCTS 0x10c4U // Cygnal Integrated Products, Inc.
 #define UHS_VID_SANEI_ELECTRIC 0x10c5U // Sanei Electric, Inc.
 #define UHS_VID_INTEC 0x10c6U // Intec, Inc.

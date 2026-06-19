@@ -155,33 +155,11 @@
   #define W_BED_SIZE W_MAX_LENGTH
 #endif
 
-// Require 0,0 bed center for Delta and SCARA
-#if IS_KINEMATIC
-  #define BED_CENTER_AT_0_0
-#endif
 
 // Define center values for future use
 #define _X_HALF_BED ((X_BED_SIZE) / 2)
 #if HAS_Y_AXIS
   #define _Y_HALF_BED ((Y_BED_SIZE) / 2)
-#endif
-#if HAS_I_AXIS
-  #define _I_HALF_IMAX ((I_BED_SIZE) / 2)
-#endif
-#if HAS_J_AXIS
-  #define _J_HALF_JMAX ((J_BED_SIZE) / 2)
-#endif
-#if HAS_K_AXIS
-  #define _K_HALF_KMAX ((K_BED_SIZE) / 2)
-#endif
-#if HAS_U_AXIS
-  #define _U_HALF_UMAX ((U_BED_SIZE) / 2)
-#endif
-#if HAS_V_AXIS
-  #define _V_HALF_VMAX ((V_BED_SIZE) / 2)
-#endif
-#if HAS_W_AXIS
-  #define _W_HALF_WMAX ((W_BED_SIZE) / 2)
 #endif
 
 #define X_CENTER TERN(BED_CENTER_AT_0_0, 0, _X_HALF_BED)
@@ -189,24 +167,7 @@
   #define Y_CENTER TERN(BED_CENTER_AT_0_0, 0, _Y_HALF_BED)
   #define XY_CENTER { X_CENTER, Y_CENTER }
 #endif
-#if HAS_I_AXIS
-  #define I_CENTER TERN(BED_CENTER_AT_0_0, 0, _I_HALF_BED)
-#endif
-#if HAS_J_AXIS
-  #define J_CENTER TERN(BED_CENTER_AT_0_0, 0, _J_HALF_BED)
-#endif
-#if HAS_K_AXIS
-  #define K_CENTER TERN(BED_CENTER_AT_0_0, 0, _K_HALF_BED)
-#endif
-#if HAS_U_AXIS
-  #define U_CENTER TERN(BED_CENTER_AT_0_0, 0, _U_HALF_BED)
-#endif
-#if HAS_V_AXIS
-  #define V_CENTER TERN(BED_CENTER_AT_0_0, 0, _V_HALF_BED)
-#endif
-#if HAS_W_AXIS
-  #define W_CENTER TERN(BED_CENTER_AT_0_0, 0, _W_HALF_BED)
-#endif
+
 
 // Get the linear boundaries of the bed
 #define X_MIN_BED (X_CENTER - _X_HALF_BED)
@@ -214,42 +175,6 @@
 #if HAS_Y_AXIS
   #define Y_MIN_BED (Y_CENTER - _Y_HALF_BED)
   #define Y_MAX_BED (Y_MIN_BED + Y_BED_SIZE)
-#endif
-#if HAS_I_AXIS
-  #define I_MINIM (I_CENTER - _I_HALF_BED_SIZE)
-  #define I_MAXIM (I_MINIM + I_BED_SIZE)
-#endif
-#if HAS_J_AXIS
-  #define J_MINIM (J_CENTER - _J_HALF_BED_SIZE)
-  #define J_MAXIM (J_MINIM + J_BED_SIZE)
-#endif
-#if HAS_K_AXIS
-  #define K_MINIM (K_CENTER - _K_HALF_BED_SIZE)
-  #define K_MAXIM (K_MINIM + K_BED_SIZE)
-#endif
-#if HAS_U_AXIS
-  #define U_MINIM (U_CENTER - _U_HALF_BED_SIZE)
-  #define U_MAXIM (U_MINIM + U_BED_SIZE)
-#endif
-#if HAS_V_AXIS
-  #define V_MINIM (V_CENTER - _V_HALF_BED_SIZE)
-  #define V_MAXIM (V_MINIM + V_BED_SIZE)
-#endif
-#if HAS_W_AXIS
-  #define W_MINIM (W_CENTER - _W_HALF_BED_SIZE)
-  #define W_MAXIM (W_MINIM + W_BED_SIZE)
-#endif
-
-/**
- * Dual X Carriage
- */
-#if ENABLED(DUAL_X_CARRIAGE)
-  #ifndef X1_MIN_POS
-    #define X1_MIN_POS X_MIN_POS
-  #endif
-  #ifndef X1_MAX_POS
-    #define X1_MAX_POS X_BED_SIZE
-  #endif
 #endif
 
 // Calibration codes only for non-core axes
@@ -261,25 +186,6 @@
   #endif
 #endif
 #define AXIS_CAN_CALIBRATE(A) CAN_CALIBRATE(A,NORMAL_AXIS)
-
-/**
- * No adjustable bed on non-cartesians
- */
-#if IS_KINEMATIC
-  #undef LCD_BED_TRAMMING
-#endif
-
-/**
- * SCARA cannot use SLOWDOWN and requires QUICKHOME
- * Printable radius assumes joints can fully extend
- */
-#if IS_SCARA
-  #undef SLOWDOWN
-  #if DISABLED(AXEL_TPARA)
-    #define QUICK_HOME
-  #endif
-  #define SCARA_PRINTABLE_RADIUS (SCARA_LINKAGE_1 + SCARA_LINKAGE_2)
-#endif
 
 /**
  * Set the home position based on settings or manual overrides
@@ -314,48 +220,6 @@
   #define Z_HOME_POS TERN(Z_HOME_TO_MIN, Z_MIN_POS, Z_MAX_POS)
 #endif
 
-#if HAS_I_AXIS
-  #ifdef MANUAL_I_HOME_POS
-    #define I_HOME_POS MANUAL_I_HOME_POS
-  #else
-    #define I_HOME_POS TERN(I_HOME_TO_MIN, I_MIN_POS, I_MAX_POS)
-  #endif
-#endif
-#if HAS_J_AXIS
-  #ifdef MANUAL_J_HOME_POS
-    #define J_HOME_POS MANUAL_J_HOME_POS
-  #else
-    #define J_HOME_POS TERN(J_HOME_TO_MIN, J_MIN_POS, J_MAX_POS)
-  #endif
-#endif
-#if HAS_K_AXIS
-  #ifdef MANUAL_K_HOME_POS
-    #define K_HOME_POS MANUAL_K_HOME_POS
-  #else
-    #define K_HOME_POS TERN(K_HOME_TO_MIN, K_MIN_POS, K_MAX_POS)
-  #endif
-#endif
-#if HAS_U_AXIS
-  #ifdef MANUAL_U_HOME_POS
-    #define U_HOME_POS MANUAL_U_HOME_POS
-  #else
-    #define U_HOME_POS (U_HOME_DIR < 0 ? U_MIN_POS : U_MAX_POS)
-  #endif
-#endif
-#if HAS_V_AXIS
-  #ifdef MANUAL_V_HOME_POS
-    #define V_HOME_POS MANUAL_V_HOME_POS
-  #else
-    #define V_HOME_POS (V_HOME_DIR < 0 ? V_MIN_POS : V_MAX_POS)
-  #endif
-#endif
-#if HAS_W_AXIS
-  #ifdef MANUAL_W_HOME_POS
-    #define W_HOME_POS MANUAL_W_HOME_POS
-  #else
-    #define W_HOME_POS (W_HOME_DIR < 0 ? W_MIN_POS : W_MAX_POS)
-  #endif
-#endif
 
 /**
  * If DELTA_HEIGHT isn't defined use the old setting
@@ -369,14 +233,6 @@
  */
 #if ENABLED(Z_PROBE_SLED)
   #define Z_SAFE_HOMING
-#endif
-
-/**
- * DELTA should ignore Z_SAFE_HOMING and SLOWDOWN
- */
-#if ENABLED(DELTA)
-  #undef Z_SAFE_HOMING
-  #undef SLOWDOWN
 #endif
 
 #ifndef MESH_INSET
@@ -504,58 +360,6 @@
 #endif
 
 /**
- * Override the SD_DETECT_STATE set in Configuration_adv.h
- * and enable sharing of onboard SD host drives (all platforms but AGCM4)
- */
-#if ENABLED(SDSUPPORT)
-
-  #if HAS_SD_HOST_DRIVE && SD_CONNECTION_IS(ONBOARD)
-    //
-    // The external SD card is not used. Hardware SPI is used to access the card.
-    // When sharing the SD card with a PC we want the menu options to
-    // mount/unmount the card and refresh it. So we disable card detect.
-    //
-    #undef SD_DETECT_PIN
-    #define HAS_SHARED_MEDIA 1
-  #endif
-
-  // Extender cable doesn't support SD_DETECT_PIN
-  #if ENABLED(NO_SD_DETECT)
-    #undef SD_DETECT_PIN
-  #endif
-
-  // Not onboard or custom cable
-  #if SD_CONNECTION_IS(LCD) || !defined(SDCARD_CONNECTION)
-    #define SD_CONNECTION_TYPICAL 1
-  #endif
-
-  // Set SD_DETECT_STATE based on hardware if not overridden
-  #if PIN_EXISTS(SD_DETECT)
-    #define HAS_SD_DETECT 1
-    #ifndef SD_DETECT_STATE
-      #if ALL(SD_CONNECTION_TYPICAL, HAS_MARLINUI_MENU, ELB_FULL_GRAPHIC_CONTROLLER)
-        #define SD_DETECT_STATE HIGH
-      #else
-        #define SD_DETECT_STATE LOW
-      #endif
-    #endif
-  #endif
-
-  #if DISABLED(USB_FLASH_DRIVE_SUPPORT) || BOTH(MULTI_VOLUME, VOLUME_SD_ONBOARD)
-    #if ENABLED(SDIO_SUPPORT)
-      #define NEED_SD2CARD_SDIO 1
-    #else
-      #define NEED_SD2CARD_SPI 1
-    #endif
-  #endif
-
-  #if HAS_SD_DETECT && NONE(HAS_GRAPHICAL_TFT, LCD_USE_DMA_FSMC, HAS_FSMC_GRAPHICAL_TFT, HAS_SPI_GRAPHICAL_TFT, IS_DWIN_MARLINUI, EXTENSIBLE_UI, HAS_DWIN_E3V2)
-    #define REINIT_NOISY_LCD 1  // Have the LCD re-init on SD insertion
-  #endif
-
-#endif
-
-/**
  * Power Supply
  */
 #ifndef PSU_NAME
@@ -577,543 +381,11 @@
   #endif
 #endif
 
-/**
- * Temp Sensor defines; set up pins as needed.
- */
-
-// Usurp a sensor to do redundant readings
-#if TEMP_SENSOR_REDUNDANT
-  #ifndef TEMP_SENSOR_REDUNDANT_SOURCE
-    #define TEMP_SENSOR_REDUNDANT_SOURCE E1
-  #endif
-  #ifndef TEMP_SENSOR_REDUNDANT_TARGET
-    #define TEMP_SENSOR_REDUNDANT_TARGET E0
-  #endif
-  #if !PIN_EXISTS(TEMP_REDUNDANT)
-    #ifndef TEMP_SENSOR_REDUNDANT_MAX_DIFF
-      #define TEMP_SENSOR_REDUNDANT_MAX_DIFF 10
-    #endif
-    #if REDUNDANT_TEMP_MATCH(SOURCE, BOARD)
-      #if !PIN_EXISTS(TEMP_BOARD)
-        #error "TEMP_SENSOR_REDUNDANT_SOURCE set to BOARD requires TEMP_BOARD_PIN."
-      #else
-        #define TEMP_REDUNDANT_PIN TEMP_BOARD_PIN
-      #endif
-    #elif REDUNDANT_TEMP_MATCH(SOURCE, COOLER)
-      #if !PIN_EXISTS(TEMP_COOLER)
-        #error "TEMP_SENSOR_REDUNDANT_SOURCE set to COOLER requires TEMP_COOLER_PIN."
-      #else
-        #define TEMP_REDUNDANT_PIN TEMP_COOLER_PIN
-      #endif
-    #elif REDUNDANT_TEMP_MATCH(SOURCE, PROBE)
-      #if !PIN_EXISTS(TEMP_PROBE)
-        #error "TEMP_SENSOR_REDUNDANT_SOURCE set to PROBE requires TEMP_PROBE_PIN."
-      #else
-        #define TEMP_REDUNDANT_PIN TEMP_PROBE_PIN
-      #endif
-    #elif REDUNDANT_TEMP_MATCH(SOURCE, CHAMBER)
-      #if !PIN_EXISTS(TEMP_CHAMBER)
-        #error "TEMP_SENSOR_REDUNDANT_SOURCE set to CHAMBER requires TEMP_CHAMBER_PIN."
-      #else
-        #define TEMP_REDUNDANT_PIN TEMP_CHAMBER_PIN
-      #endif
-    #elif REDUNDANT_TEMP_MATCH(SOURCE, BED)
-      #if !PIN_EXISTS(TEMP_BED)
-        #error "TEMP_SENSOR_REDUNDANT_SOURCE set to BED requires TEMP_BED_PIN."
-      #else
-        #define TEMP_REDUNDANT_PIN TEMP_BED_PIN
-      #endif
-    #elif REDUNDANT_TEMP_MATCH(SOURCE, E0)
-      #if !PIN_EXISTS(TEMP_0)
-        #error "TEMP_SENSOR_REDUNDANT_SOURCE set to E0 requires TEMP_0_PIN."
-      #else
-        #define TEMP_REDUNDANT_PIN TEMP_0_PIN
-      #endif
-    #elif REDUNDANT_TEMP_MATCH(SOURCE, E1)
-      #if !PIN_EXISTS(TEMP_1)
-        #error "TEMP_SENSOR_REDUNDANT_SOURCE set to E1 requires TEMP_1_PIN."
-      #else
-        #define TEMP_REDUNDANT_PIN TEMP_1_PIN
-      #endif
-    #elif REDUNDANT_TEMP_MATCH(SOURCE, E2)
-      #if !PIN_EXISTS(TEMP_2)
-        #error "TEMP_SENSOR_REDUNDANT_SOURCE set to E2 requires TEMP_2_PIN."
-      #else
-        #define TEMP_REDUNDANT_PIN TEMP_2_PIN
-      #endif
-    #elif REDUNDANT_TEMP_MATCH(SOURCE, E3)
-      #if !PIN_EXISTS(TEMP_3)
-        #error "TEMP_SENSOR_REDUNDANT_SOURCE set to E3 requires TEMP_3_PIN."
-      #else
-        #define TEMP_REDUNDANT_PIN TEMP_3_PIN
-      #endif
-    #elif REDUNDANT_TEMP_MATCH(SOURCE, E4)
-      #if !PIN_EXISTS(TEMP_4)
-        #error "TEMP_SENSOR_REDUNDANT_SOURCE set to E4 requires TEMP_4_PIN."
-      #else
-        #define TEMP_REDUNDANT_PIN TEMP_4_PIN
-      #endif
-    #elif REDUNDANT_TEMP_MATCH(SOURCE, E5)
-      #if !PIN_EXISTS(TEMP_5)
-        #error "TEMP_SENSOR_REDUNDANT_SOURCE set to E5 requires TEMP_5_PIN."
-      #else
-        #define TEMP_REDUNDANT_PIN TEMP_5_PIN
-      #endif
-    #elif REDUNDANT_TEMP_MATCH(SOURCE, E6)
-      #if !PIN_EXISTS(TEMP_6)
-        #error "TEMP_SENSOR_REDUNDANT_SOURCE set to E6 requires TEMP_6_PIN."
-      #else
-        #define TEMP_REDUNDANT_PIN TEMP_6_PIN
-      #endif
-    #elif REDUNDANT_TEMP_MATCH(SOURCE, E7)
-      #if !PIN_EXISTS(TEMP_7)
-        #error "TEMP_SENSOR_REDUNDANT_SOURCE set to E7 requires TEMP_7_PIN."
-      #else
-        #define TEMP_REDUNDANT_PIN TEMP_7_PIN
-      #endif
-    #endif
-  #endif
-#endif
-
-/**
- * Compatibility layer for MAX (SPI) temp boards
- */
-#if HAS_MAX_TC
-
-  // Translate old _SS, _CS, _SCK, _DO, _DI, _MISO, and _MOSI PIN defines.
-  #if TEMP_SENSOR_IS_MAX_TC(0) || (TEMP_SENSOR_IS_MAX_TC(REDUNDANT) && REDUNDANT_TEMP_MATCH(SOURCE, E1))
-
-    #if !PIN_EXISTS(TEMP_0_CS) // SS, CS
-      #if PIN_EXISTS(MAX6675_SS)
-        #define TEMP_0_CS_PIN MAX6675_SS_PIN
-      #elif PIN_EXISTS(MAX6675_CS)
-        #define TEMP_0_CS_PIN MAX6675_CS_PIN
-      #elif PIN_EXISTS(MAX31855_SS)
-        #define TEMP_0_CS_PIN MAX31855_SS_PIN
-      #elif PIN_EXISTS(MAX31855_CS)
-        #define TEMP_0_CS_PIN MAX31855_CS_PIN
-      #elif PIN_EXISTS(MAX31865_SS)
-        #define TEMP_0_CS_PIN MAX31865_SS_PIN
-      #elif PIN_EXISTS(MAX31865_CS)
-        #define TEMP_0_CS_PIN MAX31865_CS_PIN
-      #endif
-    #endif
-
-    #if TEMP_SENSOR_0_IS_MAX6675
-      #if !PIN_EXISTS(TEMP_0_MISO) // DO
-        #if PIN_EXISTS(MAX6675_MISO)
-          #define TEMP_0_MISO_PIN MAX6675_MISO_PIN
-        #elif PIN_EXISTS(MAX6675_DO)
-          #define TEMP_0_MISO_PIN MAX6675_DO_PIN
-        #endif
-      #endif
-      #if !PIN_EXISTS(TEMP_0_SCK) && PIN_EXISTS(MAX6675_SCK)
-        #define TEMP_0_SCK_PIN MAX6675_SCK_PIN
-      #endif
-
-    #elif TEMP_SENSOR_0_IS_MAX31855
-      #if !PIN_EXISTS(TEMP_0_MISO) // DO
-        #if PIN_EXISTS(MAX31855_MISO)
-          #define TEMP_0_MISO_PIN MAX31855_MISO_PIN
-        #elif PIN_EXISTS(MAX31855_DO)
-          #define TEMP_0_MISO_PIN MAX31855_DO_PIN
-        #endif
-      #endif
-      #if !PIN_EXISTS(TEMP_0_SCK) && PIN_EXISTS(MAX31855_SCK)
-        #define TEMP_0_SCK_PIN MAX31855_SCK_PIN
-      #endif
-
-    #elif TEMP_SENSOR_1_IS_MAX31865
-      #if !PIN_EXISTS(TEMP_1_MISO) // DO
-        #if PIN_EXISTS(MAX31865_MISO)
-          #define TEMP_1_MISO_PIN MAX31865_MISO_PIN
-        #elif PIN_EXISTS(MAX31865_DO)
-          #define TEMP_1_MISO_PIN MAX31865_DO_PIN
-        #endif
-      #endif
-      #if !PIN_EXISTS(TEMP_1_SCK) && PIN_EXISTS(MAX31865_SCK)
-        #define TEMP_1_SCK_PIN MAX31865_SCK_PIN
-      #endif
-      #if !PIN_EXISTS(TEMP_1_MOSI) && PIN_EXISTS(MAX31865_MOSI) // MOSI for '65 only
-        #define TEMP_1_MOSI_PIN MAX31865_MOSI_PIN
-      #endif
-    #endif
-
-    // Software SPI - enable if MISO/SCK are defined.
-    #if PIN_EXISTS(TEMP_0_MISO) && PIN_EXISTS(TEMP_0_SCK) && DISABLED(TEMP_SENSOR_0_FORCE_HW_SPI)
-      #if TEMP_SENSOR_0_IS_MAX31865 && !PIN_EXISTS(TEMP_0_MOSI)
-        #error "TEMP_SENSOR_0 MAX31865 requires TEMP_0_MOSI_PIN defined for Software SPI. To use Hardware SPI instead, undefine MISO/SCK or enable TEMP_SENSOR_0_FORCE_HW_SPI."
-      #else
-        #define TEMP_SENSOR_0_HAS_SPI_PINS 1
-      #endif
-    #endif
-
-  #endif // TEMP_SENSOR_IS_MAX_TC(0)
-
-  #if TEMP_SENSOR_IS_MAX_TC(1) || (TEMP_SENSOR_IS_MAX_TC(REDUNDANT) && REDUNDANT_TEMP_MATCH(SOURCE, E1))
-
-    #if !PIN_EXISTS(TEMP_1_CS) // SS2, CS2
-      #if PIN_EXISTS(MAX6675_SS2)
-        #define TEMP_1_CS_PIN MAX6675_SS2_PIN
-      #elif PIN_EXISTS(MAX6675_CS)
-        #define TEMP_1_CS_PIN MAX6675_CS2_PIN
-      #elif PIN_EXISTS(MAX31855_SS2)
-        #define TEMP_1_CS_PIN MAX31855_SS2_PIN
-      #elif PIN_EXISTS(MAX31855_CS2)
-        #define TEMP_1_CS_PIN MAX31855_CS2_PIN
-      #elif PIN_EXISTS(MAX31865_SS2)
-        #define TEMP_1_CS_PIN MAX31865_SS2_PIN
-      #elif PIN_EXISTS(MAX31865_CS2)
-        #define TEMP_1_CS_PIN MAX31865_CS2_PIN
-      #endif
-    #endif
-
-    #if TEMP_SENSOR_1_IS_MAX6675
-      #if !PIN_EXISTS(TEMP_1_MISO) // DO
-        #if PIN_EXISTS(MAX6675_MISO)
-          #define TEMP_1_MISO_PIN MAX6675_MISO_PIN
-        #elif PIN_EXISTS(MAX6675_DO)
-          #define TEMP_1_MISO_PIN MAX6675_DO_PIN
-        #endif
-      #endif
-      #if !PIN_EXISTS(TEMP_1_SCK) && PIN_EXISTS(MAX6675_SCK)
-        #define TEMP_1_SCK_PIN MAX6675_SCK_PIN
-      #endif
-
-    #elif TEMP_SENSOR_1_IS_MAX31855
-      #if !PIN_EXISTS(TEMP_1_MISO) // DO
-        #if PIN_EXISTS(MAX31855_MISO)
-          #define TEMP_1_MISO_PIN MAX31855_MISO_PIN
-        #elif PIN_EXISTS(MAX31855_DO)
-          #define TEMP_1_MISO_PIN MAX31855_DO_PIN
-        #endif
-      #endif
-      #if !PIN_EXISTS(TEMP_1_SCK) && PIN_EXISTS(MAX31855_SCK)
-        #define TEMP_1_SCK_PIN MAX31855_SCK_PIN
-      #endif
-
-    #elif TEMP_SENSOR_1_IS_MAX31865
-      #if !PIN_EXISTS(TEMP_1_MISO) // DO
-        #if PIN_EXISTS(MAX31865_MISO)
-          #define TEMP_1_MISO_PIN MAX31865_MISO_PIN
-        #elif PIN_EXISTS(MAX31865_DO)
-          #define TEMP_1_MISO_PIN MAX31865_DO_PIN
-        #endif
-      #endif
-      #if !PIN_EXISTS(TEMP_1_SCK) && PIN_EXISTS(MAX31865_SCK)
-        #define TEMP_1_SCK_PIN MAX31865_SCK_PIN
-      #endif
-      #if !PIN_EXISTS(TEMP_1_MOSI) && PIN_EXISTS(MAX31865_MOSI) // MOSI for '65 only
-        #define TEMP_1_MOSI_PIN MAX31865_MOSI_PIN
-      #endif
-    #endif
-
-    // Software SPI - enable if MISO/SCK are defined.
-    #if PIN_EXISTS(TEMP_1_MISO) && PIN_EXISTS(TEMP_1_SCK) && DISABLED(TEMP_SENSOR_1_FORCE_HW_SPI)
-      #if TEMP_SENSOR_1_IS_MAX31865 && !PIN_EXISTS(TEMP_1_MOSI)
-        #error "TEMP_SENSOR_1 MAX31865 requires TEMP_1_MOSI_PIN defined for Software SPI. To use Hardware SPI instead, undefine MISO/SCK or enable TEMP_SENSOR_1_FORCE_HW_SPI."
-      #else
-        #define TEMP_SENSOR_1_HAS_SPI_PINS 1
-      #endif
-    #endif
-
-  #endif // TEMP_SENSOR_IS_MAX_TC(1)
-
-  //
-  // User-defined thermocouple libraries
-  //
-  // Add LIB_MAX6675 / LIB_MAX31855 / LIB_MAX31865 to the build_flags
-  // to select a USER library for MAX6675, MAX31855, MAX31865
-  //
-  #if BOTH(HAS_MAX6675, LIB_MAX6675)
-    #define USE_LIB_MAX6675 1
-  #endif
-  #if BOTH(HAS_MAX31855, LIB_MAX31855)
-    #define USE_ADAFRUIT_MAX31855 1
-  #endif
-  #if BOTH(HAS_MAX31865, LIB_MAX31865)
-    #define USE_ADAFRUIT_MAX31865 1
-  #elif HAS_MAX31865
-    #define LIB_INTERNAL_MAX31865 1
-  #endif
-
-#endif // HAS_MAX_TC
-
-/**
- * X_DUAL_ENDSTOPS endstop reassignment
- */
-#if ENABLED(X_DUAL_ENDSTOPS)
-  #if X_HOME_TO_MAX
-    #ifndef X2_MAX_ENDSTOP_INVERTING
-      #if X2_USE_ENDSTOP == _XMIN_
-        #define X2_MAX_ENDSTOP_INVERTING X_MIN_ENDSTOP_INVERTING
-      #elif X2_USE_ENDSTOP == _XMAX_
-        #define X2_MAX_ENDSTOP_INVERTING X_MAX_ENDSTOP_INVERTING
-      #elif X2_USE_ENDSTOP == _YMIN_
-        #define X2_MAX_ENDSTOP_INVERTING Y_MIN_ENDSTOP_INVERTING
-      #elif X2_USE_ENDSTOP == _YMAX_
-        #define X2_MAX_ENDSTOP_INVERTING Y_MAX_ENDSTOP_INVERTING
-      #elif X2_USE_ENDSTOP == _ZMIN_
-        #define X2_MAX_ENDSTOP_INVERTING Z_MIN_ENDSTOP_INVERTING
-      #elif X2_USE_ENDSTOP == _ZMAX_
-        #define X2_MAX_ENDSTOP_INVERTING Z_MAX_ENDSTOP_INVERTING
-      #else
-        #define X2_MAX_ENDSTOP_INVERTING false
-      #endif
-    #endif
-    #if !defined(X2_MAX_PIN) && !defined(X2_STOP_PIN)
-      #if X2_USE_ENDSTOP == _XMIN_
-        #define X2_MAX_PIN X_MIN_PIN
-      #elif X2_USE_ENDSTOP == _XMAX_
-        #define X2_MAX_PIN X_MAX_PIN
-      #elif X2_USE_ENDSTOP == _XSTOP_
-        #define X2_MAX_PIN X_STOP_PIN
-      #elif X2_USE_ENDSTOP == _YMIN_
-        #define X2_MAX_PIN Y_MIN_PIN
-      #elif X2_USE_ENDSTOP == _YMAX_
-        #define X2_MAX_PIN Y_MAX_PIN
-      #elif X2_USE_ENDSTOP == _YSTOP_
-        #define X2_MAX_PIN Y_STOP_PIN
-      #elif X2_USE_ENDSTOP == _ZMIN_
-        #define X2_MAX_PIN Z_MIN_PIN
-      #elif X2_USE_ENDSTOP == _ZMAX_
-        #define X2_MAX_PIN Z_MAX_PIN
-      #elif X2_USE_ENDSTOP == _ZSTOP_
-        #define X2_MAX_PIN Z_STOP_PIN
-      #elif X2_USE_ENDSTOP == _XDIAG_
-        #define X2_MAX_PIN X_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _YDIAG_
-        #define X2_MAX_PIN Y_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _ZDIAG_
-        #define X2_MAX_PIN Z_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _E0DIAG_
-        #define X2_MAX_PIN E0_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _E1DIAG_
-        #define X2_MAX_PIN E1_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _E2DIAG_
-        #define X2_MAX_PIN E2_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _E3DIAG_
-        #define X2_MAX_PIN E3_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _E4DIAG_
-        #define X2_MAX_PIN E4_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _E5DIAG_
-        #define X2_MAX_PIN E5_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _E6DIAG_
-        #define X2_MAX_PIN E6_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _E7DIAG_
-        #define X2_MAX_PIN E7_DIAG_PIN
-      #endif
-    #endif
-    #ifndef X2_MIN_ENDSTOP_INVERTING
-      #define X2_MIN_ENDSTOP_INVERTING false
-    #endif
-  #else
-    #ifndef X2_MIN_ENDSTOP_INVERTING
-      #if X2_USE_ENDSTOP == _XMIN_
-        #define X2_MIN_ENDSTOP_INVERTING X_MIN_ENDSTOP_INVERTING
-      #elif X2_USE_ENDSTOP == _XMAX_
-        #define X2_MIN_ENDSTOP_INVERTING X_MAX_ENDSTOP_INVERTING
-      #elif X2_USE_ENDSTOP == _YMIN_
-        #define X2_MIN_ENDSTOP_INVERTING Y_MIN_ENDSTOP_INVERTING
-      #elif X2_USE_ENDSTOP == _YMAX_
-        #define X2_MIN_ENDSTOP_INVERTING Y_MAX_ENDSTOP_INVERTING
-      #elif X2_USE_ENDSTOP == _ZMIN_
-        #define X2_MIN_ENDSTOP_INVERTING Z_MIN_ENDSTOP_INVERTING
-      #elif X2_USE_ENDSTOP == _ZMAX_
-        #define X2_MIN_ENDSTOP_INVERTING Z_MAX_ENDSTOP_INVERTING
-      #else
-        #define X2_MIN_ENDSTOP_INVERTING false
-      #endif
-    #endif
-    #if !defined(X2_MIN_PIN) && !defined(X2_STOP_PIN)
-      #if X2_USE_ENDSTOP == _XMIN_
-        #define X2_MIN_PIN X_MIN_PIN
-      #elif X2_USE_ENDSTOP == _XMAX_
-        #define X2_MIN_PIN X_MAX_PIN
-      #elif X2_USE_ENDSTOP == _XSTOP_
-        #define X2_MIN_PIN X_STOP_PIN
-      #elif X2_USE_ENDSTOP == _YMIN_
-        #define X2_MIN_PIN Y_MIN_PIN
-      #elif X2_USE_ENDSTOP == _YMAX_
-        #define X2_MIN_PIN Y_MAX_PIN
-      #elif X2_USE_ENDSTOP == _YSTOP_
-        #define X2_MIN_PIN Y_STOP_PIN
-      #elif X2_USE_ENDSTOP == _ZMIN_
-        #define X2_MIN_PIN Z_MIN_PIN
-      #elif X2_USE_ENDSTOP == _ZMAX_
-        #define X2_MIN_PIN Z_MAX_PIN
-      #elif X2_USE_ENDSTOP == _ZSTOP_
-        #define X2_MIN_PIN Z_STOP_PIN
-      #elif X2_USE_ENDSTOP == _XDIAG_
-        #define X2_MIN_PIN X_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _YDIAG_
-        #define X2_MIN_PIN Y_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _ZDIAG_
-        #define X2_MIN_PIN Z_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _E0DIAG_
-        #define X2_MIN_PIN E0_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _E1DIAG_
-        #define X2_MIN_PIN E1_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _E2DIAG_
-        #define X2_MIN_PIN E2_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _E3DIAG_
-        #define X2_MIN_PIN E3_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _E4DIAG_
-        #define X2_MIN_PIN E4_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _E5DIAG_
-        #define X2_MIN_PIN E5_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _E6DIAG_
-        #define X2_MIN_PIN E6_DIAG_PIN
-      #elif X2_USE_ENDSTOP == _E7DIAG_
-        #define X2_MIN_PIN E7_DIAG_PIN
-      #endif
-    #endif
-    #ifndef X2_MAX_ENDSTOP_INVERTING
-      #define X2_MAX_ENDSTOP_INVERTING false
-    #endif
-  #endif
-#endif
-
-/**
- * Y_DUAL_ENDSTOPS endstop reassignment
- */
-#if ENABLED(Y_DUAL_ENDSTOPS)
-  #if Y_HOME_TO_MAX
-    #ifndef Y2_MAX_ENDSTOP_INVERTING
-      #if Y2_USE_ENDSTOP == _XMIN_
-        #define Y2_MAX_ENDSTOP_INVERTING X_MIN_ENDSTOP_INVERTING
-      #elif Y2_USE_ENDSTOP == _XMAX_
-        #define Y2_MAX_ENDSTOP_INVERTING X_MAX_ENDSTOP_INVERTING
-      #elif Y2_USE_ENDSTOP == _YMIN_
-        #define Y2_MAX_ENDSTOP_INVERTING Y_MIN_ENDSTOP_INVERTING
-      #elif Y2_USE_ENDSTOP == _YMAX_
-        #define Y2_MAX_ENDSTOP_INVERTING Y_MAX_ENDSTOP_INVERTING
-      #elif Y2_USE_ENDSTOP == _ZMIN_
-        #define Y2_MAX_ENDSTOP_INVERTING Z_MIN_ENDSTOP_INVERTING
-      #elif Y2_USE_ENDSTOP == _ZMAX_
-        #define Y2_MAX_ENDSTOP_INVERTING Z_MAX_ENDSTOP_INVERTING
-      #else
-        #define Y2_MAX_ENDSTOP_INVERTING false
-      #endif
-    #endif
-    #if !defined(Y2_MAX_PIN) && !defined(Y2_STOP_PIN)
-      #if Y2_USE_ENDSTOP == _XMIN_
-        #define Y2_MAX_PIN X_MIN_PIN
-      #elif Y2_USE_ENDSTOP == _XMAX_
-        #define Y2_MAX_PIN X_MAX_PIN
-      #elif Y2_USE_ENDSTOP == _XSTOP_
-        #define Y2_MAX_PIN X_STOP_PIN
-      #elif Y2_USE_ENDSTOP == _YMIN_
-        #define Y2_MAX_PIN Y_MIN_PIN
-      #elif Y2_USE_ENDSTOP == _YMAX_
-        #define Y2_MAX_PIN Y_MAX_PIN
-      #elif Y2_USE_ENDSTOP == _YSTOP_
-        #define Y2_MAX_PIN Y_STOP_PIN
-      #elif Y2_USE_ENDSTOP == _ZMIN_
-        #define Y2_MAX_PIN Z_MIN_PIN
-      #elif Y2_USE_ENDSTOP == _ZMAX_
-        #define Y2_MAX_PIN Z_MAX_PIN
-      #elif Y2_USE_ENDSTOP == _ZSTOP_
-        #define Y2_MAX_PIN Z_STOP_PIN
-      #elif Y2_USE_ENDSTOP == _XDIAG_
-        #define Y2_MAX_PIN X_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _YDIAG_
-        #define Y2_MAX_PIN Y_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _ZDIAG_
-        #define Y2_MAX_PIN Z_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _E0DIAG_
-        #define Y2_MAX_PIN E0_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _E1DIAG_
-        #define Y2_MAX_PIN E1_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _E2DIAG_
-        #define Y2_MAX_PIN E2_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _E3DIAG_
-        #define Y2_MAX_PIN E3_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _E4DIAG_
-        #define Y2_MAX_PIN E4_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _E5DIAG_
-        #define Y2_MAX_PIN E5_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _E6DIAG_
-        #define Y2_MAX_PIN E6_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _E7DIAG_
-        #define Y2_MAX_PIN E7_DIAG_PIN
-      #endif
-    #endif
-    #ifndef Y2_MIN_ENDSTOP_INVERTING
-      #define Y2_MIN_ENDSTOP_INVERTING false
-    #endif
-  #else
-    #ifndef Y2_MIN_ENDSTOP_INVERTING
-      #if Y2_USE_ENDSTOP == _XMIN_
-        #define Y2_MIN_ENDSTOP_INVERTING X_MIN_ENDSTOP_INVERTING
-      #elif Y2_USE_ENDSTOP == _XMAX_
-        #define Y2_MIN_ENDSTOP_INVERTING X_MAX_ENDSTOP_INVERTING
-      #elif Y2_USE_ENDSTOP == _YMIN_
-        #define Y2_MIN_ENDSTOP_INVERTING Y_MIN_ENDSTOP_INVERTING
-      #elif Y2_USE_ENDSTOP == _YMAX_
-        #define Y2_MIN_ENDSTOP_INVERTING Y_MAX_ENDSTOP_INVERTING
-      #elif Y2_USE_ENDSTOP == _ZMIN_
-        #define Y2_MIN_ENDSTOP_INVERTING Z_MIN_ENDSTOP_INVERTING
-      #elif Y2_USE_ENDSTOP == _ZMAX_
-        #define Y2_MIN_ENDSTOP_INVERTING Z_MAX_ENDSTOP_INVERTING
-      #else
-        #define Y2_MIN_ENDSTOP_INVERTING false
-      #endif
-    #endif
-    #if !defined(Y2_MIN_PIN) && !defined(Y2_STOP_PIN)
-      #if Y2_USE_ENDSTOP == _XMIN_
-        #define Y2_MIN_PIN X_MIN_PIN
-      #elif Y2_USE_ENDSTOP == _XMAX_
-        #define Y2_MIN_PIN X_MAX_PIN
-      #elif Y2_USE_ENDSTOP == _XSTOP_
-        #define Y2_MIN_PIN X_STOP_PIN
-      #elif Y2_USE_ENDSTOP == _YMIN_
-        #define Y2_MIN_PIN Y_MIN_PIN
-      #elif Y2_USE_ENDSTOP == _YMAX_
-        #define Y2_MIN_PIN Y_MAX_PIN
-      #elif Y2_USE_ENDSTOP == _YSTOP_
-        #define Y2_MIN_PIN Y_STOP_PIN
-      #elif Y2_USE_ENDSTOP == _ZMIN_
-        #define Y2_MIN_PIN Z_MIN_PIN
-      #elif Y2_USE_ENDSTOP == _ZMAX_
-        #define Y2_MIN_PIN Z_MAX_PIN
-      #elif Y2_USE_ENDSTOP == _ZSTOP_
-        #define Y2_MIN_PIN Z_STOP_PIN
-      #elif Y2_USE_ENDSTOP == _XDIAG_
-        #define Y2_MIN_PIN X_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _YDIAG_
-        #define Y2_MIN_PIN Y_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _ZDIAG_
-        #define Y2_MIN_PIN Z_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _E0DIAG_
-        #define Y2_MIN_PIN E0_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _E1DIAG_
-        #define Y2_MIN_PIN E1_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _E2DIAG_
-        #define Y2_MIN_PIN E2_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _E3DIAG_
-        #define Y2_MIN_PIN E3_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _E4DIAG_
-        #define Y2_MIN_PIN E4_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _E5DIAG_
-        #define Y2_MIN_PIN E5_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _E6DIAG_
-        #define Y2_MIN_PIN E6_DIAG_PIN
-      #elif Y2_USE_ENDSTOP == _E7DIAG_
-        #define Y2_MIN_PIN E7_DIAG_PIN
-      #endif
-    #endif
-    #ifndef Y2_MAX_ENDSTOP_INVERTING
-      #define Y2_MAX_ENDSTOP_INVERTING false
-    #endif
-  #endif
-#endif
 
 /**
  * Z_MULTI_ENDSTOPS endstop reassignment
  */
 #if ENABLED(Z_MULTI_ENDSTOPS)
-
   #if Z_HOME_TO_MAX
     #ifndef Z2_MAX_ENDSTOP_INVERTING
       #if Z2_USE_ENDSTOP == _XMIN_
@@ -1243,271 +515,6 @@
       #define Z2_MAX_ENDSTOP_INVERTING false
     #endif
   #endif
-
-  #if NUM_Z_STEPPERS >= 3
-    #if Z_HOME_TO_MAX
-      #ifndef Z3_MAX_ENDSTOP_INVERTING
-        #if Z3_USE_ENDSTOP == _XMIN_
-          #define Z3_MAX_ENDSTOP_INVERTING X_MIN_ENDSTOP_INVERTING
-        #elif Z3_USE_ENDSTOP == _XMAX_
-          #define Z3_MAX_ENDSTOP_INVERTING X_MAX_ENDSTOP_INVERTING
-        #elif Z3_USE_ENDSTOP == _YMIN_
-          #define Z3_MAX_ENDSTOP_INVERTING Y_MIN_ENDSTOP_INVERTING
-        #elif Z3_USE_ENDSTOP == _YMAX_
-          #define Z3_MAX_ENDSTOP_INVERTING Y_MAX_ENDSTOP_INVERTING
-        #elif Z3_USE_ENDSTOP == _ZMIN_
-          #define Z3_MAX_ENDSTOP_INVERTING Z_MIN_ENDSTOP_INVERTING
-        #elif Z3_USE_ENDSTOP == _ZMAX_
-          #define Z3_MAX_ENDSTOP_INVERTING Z_MAX_ENDSTOP_INVERTING
-        #else
-          #define Z3_MAX_ENDSTOP_INVERTING false
-        #endif
-      #endif
-      #ifndef Z3_MAX_PIN
-        #if Z3_USE_ENDSTOP == _XMIN_
-          #define Z3_MAX_PIN X_MIN_PIN
-        #elif Z3_USE_ENDSTOP == _XMAX_
-          #define Z3_MAX_PIN X_MAX_PIN
-        #elif Z3_USE_ENDSTOP == _XSTOP_
-          #define Z3_MAX_PIN X_STOP_PIN
-        #elif Z3_USE_ENDSTOP == _YMIN_
-          #define Z3_MAX_PIN Y_MIN_PIN
-        #elif Z3_USE_ENDSTOP == _YMAX_
-          #define Z3_MAX_PIN Y_MAX_PIN
-        #elif Z3_USE_ENDSTOP == _YSTOP_
-          #define Z3_MAX_PIN Y_STOP_PIN
-        #elif Z3_USE_ENDSTOP == _ZMIN_
-          #define Z3_MAX_PIN Z_MIN_PIN
-        #elif Z3_USE_ENDSTOP == _ZMAX_
-          #define Z3_MAX_PIN Z_MAX_PIN
-        #elif Z3_USE_ENDSTOP == _ZSTOP_
-          #define Z3_MAX_PIN Z_STOP_PIN
-        #elif Z3_USE_ENDSTOP == _XDIAG_
-          #define Z3_MAX_PIN X_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _YDIAG_
-          #define Z3_MAX_PIN Y_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _ZDIAG_
-          #define Z3_MAX_PIN Z_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _E0DIAG_
-          #define Z3_MAX_PIN E0_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _E1DIAG_
-          #define Z3_MAX_PIN E1_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _E2DIAG_
-          #define Z3_MAX_PIN E2_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _E3DIAG_
-          #define Z3_MAX_PIN E3_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _E4DIAG_
-          #define Z3_MAX_PIN E4_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _E5DIAG_
-          #define Z3_MAX_PIN E5_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _E6DIAG_
-          #define Z3_MAX_PIN E6_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _E7DIAG_
-          #define Z3_MAX_PIN E7_DIAG_PIN
-        #endif
-      #endif
-      #ifndef Z3_MIN_ENDSTOP_INVERTING
-        #define Z3_MIN_ENDSTOP_INVERTING false
-      #endif
-    #else
-      #ifndef Z3_MIN_ENDSTOP_INVERTING
-        #if Z3_USE_ENDSTOP == _XMIN_
-          #define Z3_MIN_ENDSTOP_INVERTING X_MIN_ENDSTOP_INVERTING
-        #elif Z3_USE_ENDSTOP == _XMAX_
-          #define Z3_MIN_ENDSTOP_INVERTING X_MAX_ENDSTOP_INVERTING
-        #elif Z3_USE_ENDSTOP == _YMIN_
-          #define Z3_MIN_ENDSTOP_INVERTING Y_MIN_ENDSTOP_INVERTING
-        #elif Z3_USE_ENDSTOP == _YMAX_
-          #define Z3_MIN_ENDSTOP_INVERTING Y_MAX_ENDSTOP_INVERTING
-        #elif Z3_USE_ENDSTOP == _ZMIN_
-          #define Z3_MIN_ENDSTOP_INVERTING Z_MIN_ENDSTOP_INVERTING
-        #elif Z3_USE_ENDSTOP == _ZMAX_
-          #define Z3_MIN_ENDSTOP_INVERTING Z_MAX_ENDSTOP_INVERTING
-        #else
-          #define Z3_MIN_ENDSTOP_INVERTING false
-        #endif
-      #endif
-      #ifndef Z3_MIN_PIN
-        #if Z3_USE_ENDSTOP == _XMIN_
-          #define Z3_MIN_PIN X_MIN_PIN
-        #elif Z3_USE_ENDSTOP == _XMAX_
-          #define Z3_MIN_PIN X_MAX_PIN
-        #elif Z3_USE_ENDSTOP == _XSTOP_
-          #define Z3_MIN_PIN X_STOP_PIN
-        #elif Z3_USE_ENDSTOP == _YMIN_
-          #define Z3_MIN_PIN Y_MIN_PIN
-        #elif Z3_USE_ENDSTOP == _YMAX_
-          #define Z3_MIN_PIN Y_MAX_PIN
-        #elif Z3_USE_ENDSTOP == _YSTOP_
-          #define Z3_MIN_PIN Y_STOP_PIN
-        #elif Z3_USE_ENDSTOP == _ZMIN_
-          #define Z3_MIN_PIN Z_MIN_PIN
-        #elif Z3_USE_ENDSTOP == _ZMAX_
-          #define Z3_MIN_PIN Z_MAX_PIN
-        #elif Z3_USE_ENDSTOP == _ZSTOP_
-          #define Z3_MIN_PIN Z_STOP_PIN
-        #elif Z3_USE_ENDSTOP == _XDIAG_
-          #define Z3_MIN_PIN X_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _YDIAG_
-          #define Z3_MIN_PIN Y_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _ZDIAG_
-          #define Z3_MIN_PIN Z_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _E0DIAG_
-          #define Z3_MIN_PIN E0_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _E1DIAG_
-          #define Z3_MIN_PIN E1_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _E2DIAG_
-          #define Z3_MIN_PIN E2_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _E3DIAG_
-          #define Z3_MIN_PIN E3_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _E4DIAG_
-          #define Z3_MIN_PIN E4_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _E5DIAG_
-          #define Z3_MIN_PIN E5_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _E6DIAG_
-          #define Z3_MIN_PIN E6_DIAG_PIN
-        #elif Z3_USE_ENDSTOP == _E7DIAG_
-          #define Z3_MIN_PIN E7_DIAG_PIN
-        #endif
-      #endif
-      #ifndef Z3_MAX_ENDSTOP_INVERTING
-        #define Z3_MAX_ENDSTOP_INVERTING false
-      #endif
-    #endif
-  #endif
-
-  #if NUM_Z_STEPPERS >= 4
-    #if Z_HOME_TO_MAX
-      #ifndef Z4_MAX_ENDSTOP_INVERTING
-        #if Z4_USE_ENDSTOP == _XMIN_
-          #define Z4_MAX_ENDSTOP_INVERTING X_MIN_ENDSTOP_INVERTING
-        #elif Z4_USE_ENDSTOP == _XMAX_
-          #define Z4_MAX_ENDSTOP_INVERTING X_MAX_ENDSTOP_INVERTING
-        #elif Z4_USE_ENDSTOP == _YMIN_
-          #define Z4_MAX_ENDSTOP_INVERTING Y_MIN_ENDSTOP_INVERTING
-        #elif Z4_USE_ENDSTOP == _YMAX_
-          #define Z4_MAX_ENDSTOP_INVERTING Y_MAX_ENDSTOP_INVERTING
-        #elif Z4_USE_ENDSTOP == _ZMIN_
-          #define Z4_MAX_ENDSTOP_INVERTING Z_MIN_ENDSTOP_INVERTING
-        #elif Z4_USE_ENDSTOP == _ZMAX_
-          #define Z4_MAX_ENDSTOP_INVERTING Z_MAX_ENDSTOP_INVERTING
-        #else
-          #define Z4_MAX_ENDSTOP_INVERTING false
-        #endif
-      #endif
-      #ifndef Z4_MAX_PIN
-        #if Z4_USE_ENDSTOP == _XMIN_
-          #define Z4_MAX_PIN X_MIN_PIN
-        #elif Z4_USE_ENDSTOP == _XMAX_
-          #define Z4_MAX_PIN X_MAX_PIN
-        #elif Z4_USE_ENDSTOP == _XSTOP_
-          #define Z4_MAX_PIN X_STOP_PIN
-        #elif Z4_USE_ENDSTOP == _YMIN_
-          #define Z4_MAX_PIN Y_MIN_PIN
-        #elif Z4_USE_ENDSTOP == _YMAX_
-          #define Z4_MAX_PIN Y_MAX_PIN
-        #elif Z4_USE_ENDSTOP == _YSTOP_
-          #define Z4_MAX_PIN Y_STOP_PIN
-        #elif Z4_USE_ENDSTOP == _ZMIN_
-          #define Z4_MAX_PIN Z_MIN_PIN
-        #elif Z4_USE_ENDSTOP == _ZMAX_
-          #define Z4_MAX_PIN Z_MAX_PIN
-        #elif Z4_USE_ENDSTOP == _ZSTOP_
-          #define Z4_MAX_PIN Z_STOP_PIN
-        #elif Z4_USE_ENDSTOP == _XDIAG_
-          #define Z4_MAX_PIN X_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _YDIAG_
-          #define Z4_MAX_PIN Y_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _ZDIAG_
-          #define Z4_MAX_PIN Z_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _E0DIAG_
-          #define Z4_MAX_PIN E0_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _E1DIAG_
-          #define Z4_MAX_PIN E1_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _E2DIAG_
-          #define Z4_MAX_PIN E2_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _E3DIAG_
-          #define Z4_MAX_PIN E3_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _E4DIAG_
-          #define Z4_MAX_PIN E4_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _E5DIAG_
-          #define Z4_MAX_PIN E5_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _E6DIAG_
-          #define Z4_MAX_PIN E6_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _E7DIAG_
-          #define Z4_MAX_PIN E7_DIAG_PIN
-        #endif
-      #endif
-      #ifndef Z4_MIN_ENDSTOP_INVERTING
-        #define Z4_MIN_ENDSTOP_INVERTING false
-      #endif
-    #else
-      #ifndef Z4_MIN_ENDSTOP_INVERTING
-        #if Z4_USE_ENDSTOP == _XMIN_
-          #define Z4_MIN_ENDSTOP_INVERTING X_MIN_ENDSTOP_INVERTING
-        #elif Z4_USE_ENDSTOP == _XMAX_
-          #define Z4_MIN_ENDSTOP_INVERTING X_MAX_ENDSTOP_INVERTING
-        #elif Z4_USE_ENDSTOP == _YMIN_
-          #define Z4_MIN_ENDSTOP_INVERTING Y_MIN_ENDSTOP_INVERTING
-        #elif Z4_USE_ENDSTOP == _YMAX_
-          #define Z4_MIN_ENDSTOP_INVERTING Y_MAX_ENDSTOP_INVERTING
-        #elif Z4_USE_ENDSTOP == _ZMIN_
-          #define Z4_MIN_ENDSTOP_INVERTING Z_MIN_ENDSTOP_INVERTING
-        #elif Z4_USE_ENDSTOP == _ZMAX_
-          #define Z4_MIN_ENDSTOP_INVERTING Z_MAX_ENDSTOP_INVERTING
-        #else
-          #define Z4_MIN_ENDSTOP_INVERTING false
-        #endif
-      #endif
-      #ifndef Z4_MIN_PIN
-        #if Z4_USE_ENDSTOP == _XMIN_
-          #define Z4_MIN_PIN X_MIN_PIN
-        #elif Z4_USE_ENDSTOP == _XMAX_
-          #define Z4_MIN_PIN X_MAX_PIN
-        #elif Z4_USE_ENDSTOP == _XSTOP_
-          #define Z4_MIN_PIN X_STOP_PIN
-        #elif Z4_USE_ENDSTOP == _YMIN_
-          #define Z4_MIN_PIN Y_MIN_PIN
-        #elif Z4_USE_ENDSTOP == _YMAX_
-          #define Z4_MIN_PIN Y_MAX_PIN
-        #elif Z4_USE_ENDSTOP == _YSTOP_
-          #define Z4_MIN_PIN Y_STOP_PIN
-        #elif Z4_USE_ENDSTOP == _ZMIN_
-          #define Z4_MIN_PIN Z_MIN_PIN
-        #elif Z4_USE_ENDSTOP == _ZMAX_
-          #define Z4_MIN_PIN Z_MAX_PIN
-        #elif Z4_USE_ENDSTOP == _ZSTOP_
-          #define Z4_MIN_PIN Z_STOP_PIN
-        #elif Z4_USE_ENDSTOP == _XDIAG_
-          #define Z4_MIN_PIN X_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _YDIAG_
-          #define Z4_MIN_PIN Y_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _ZDIAG_
-          #define Z4_MIN_PIN Z_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _E0DIAG_
-          #define Z4_MIN_PIN E0_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _E1DIAG_
-          #define Z4_MIN_PIN E1_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _E2DIAG_
-          #define Z4_MIN_PIN E2_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _E3DIAG_
-          #define Z4_MIN_PIN E3_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _E4DIAG_
-          #define Z4_MIN_PIN E4_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _E5DIAG_
-          #define Z4_MIN_PIN E5_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _E6DIAG_
-          #define Z4_MIN_PIN E6_DIAG_PIN
-        #elif Z4_USE_ENDSTOP == _E7DIAG_
-          #define Z4_MIN_PIN E7_DIAG_PIN
-        #endif
-      #endif
-      #ifndef Z4_MAX_ENDSTOP_INVERTING
-        #define Z4_MAX_ENDSTOP_INVERTING false
-      #endif
-    #endif
-  #endif
-
 #endif // Z_MULTI_ENDSTOPS
 
 /**
@@ -1608,30 +615,10 @@
 #if PIN_EXISTS(X_STEP)
   #define HAS_X_STEP 1
 #endif
-#if PIN_EXISTS(X_MS1)
-  #define HAS_X_MS_PINS 1
-#endif
-
-#if PIN_EXISTS(X2_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(X2))
-  #define HAS_X2_ENABLE 1
-#endif
-#if PIN_EXISTS(X2_DIR)
-  #define HAS_X2_DIR 1
-#endif
-#if PIN_EXISTS(X2_STEP)
-  #define HAS_X2_STEP 1
-#endif
-#if PIN_EXISTS(X2_MS1)
-  #define HAS_X2_MS_PINS 1
-#endif
 
 /**
  * Set defaults for missing (newer) options
  */
-#if !defined(DISABLE_INACTIVE_X) && ENABLED(DISABLE_X)
-  #define DISABLE_INACTIVE_X 1
-#endif
-
 #if HAS_Y_AXIS
   #if PIN_EXISTS(Y_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(Y))
     #define HAS_Y_ENABLE 1
@@ -1641,25 +628,6 @@
   #endif
   #if PIN_EXISTS(Y_STEP)
     #define HAS_Y_STEP 1
-  #endif
-  #if PIN_EXISTS(Y_MS1)
-    #define HAS_Y_MS_PINS 1
-  #endif
-
-  #if PIN_EXISTS(Y2_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(Y2))
-    #define HAS_Y2_ENABLE 1
-  #endif
-  #if PIN_EXISTS(Y2_DIR)
-    #define HAS_Y2_DIR 1
-  #endif
-  #if PIN_EXISTS(Y2_STEP)
-    #define HAS_Y2_STEP 1
-  #endif
-  #if PIN_EXISTS(Y2_MS1)
-    #define HAS_Y2_MS_PINS 1
-  #endif
-  #if !defined(DISABLE_INACTIVE_Y) && ENABLED(DISABLE_Y)
-    #define DISABLE_INACTIVE_Y 1
   #endif
 #else
   #undef DISABLE_INACTIVE_Y
@@ -1685,298 +653,13 @@
   #undef DISABLE_INACTIVE_Z
 #endif
 
-#if NUM_Z_STEPPERS >= 2
-  #if PIN_EXISTS(Z2_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(Z2))
-    #define HAS_Z2_ENABLE 1
-  #endif
-  #if PIN_EXISTS(Z2_DIR)
-    #define HAS_Z2_DIR 1
-  #endif
-  #if PIN_EXISTS(Z2_STEP)
-    #define HAS_Z2_STEP 1
-  #endif
-  #if PIN_EXISTS(Z2_MS1)
-    #define HAS_Z2_MS_PINS 1
-  #endif
-#endif
-
-#if NUM_Z_STEPPERS >= 3
-  #if PIN_EXISTS(Z3_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(Z3))
-    #define HAS_Z3_ENABLE 1
-  #endif
-  #if PIN_EXISTS(Z3_DIR)
-    #define HAS_Z3_DIR 1
-  #endif
-  #if PIN_EXISTS(Z3_STEP)
-    #define HAS_Z3_STEP 1
-  #endif
-  #if PIN_EXISTS(Z3_MS1)
-    #define HAS_Z3_MS_PINS 1
-  #endif
-#endif
-
-#if NUM_Z_STEPPERS >= 4
-  #if PIN_EXISTS(Z4_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(Z4))
-    #define HAS_Z4_ENABLE 1
-  #endif
-  #if PIN_EXISTS(Z4_DIR)
-    #define HAS_Z4_DIR 1
-  #endif
-  #if PIN_EXISTS(Z4_STEP)
-    #define HAS_Z4_STEP 1
-  #endif
-  #if PIN_EXISTS(Z4_MS1)
-    #define HAS_Z4_MS_PINS 1
-  #endif
-#endif
-
-#if HAS_I_AXIS
-  #if PIN_EXISTS(I_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(I))
-    #define HAS_I_ENABLE 1
-  #endif
-  #if PIN_EXISTS(I_DIR)
-    #define HAS_I_DIR 1
-  #endif
-  #if PIN_EXISTS(I_STEP)
-    #define HAS_I_STEP 1
-  #endif
-  #if PIN_EXISTS(I_MS1)
-    #define HAS_I_MS_PINS 1
-  #endif
-  #if !defined(DISABLE_INACTIVE_I) && ENABLED(DISABLE_I)
-    #define DISABLE_INACTIVE_I 1
-  #endif
-#else
-  #undef DISABLE_INACTIVE_I
-#endif
-
-#if HAS_J_AXIS
-  #if PIN_EXISTS(J_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(J))
-    #define HAS_J_ENABLE 1
-  #endif
-  #if PIN_EXISTS(J_DIR)
-    #define HAS_J_DIR 1
-  #endif
-  #if PIN_EXISTS(J_STEP)
-    #define HAS_J_STEP 1
-  #endif
-  #if PIN_EXISTS(J_MS1)
-    #define HAS_J_MS_PINS 1
-  #endif
-  #if !defined(DISABLE_INACTIVE_J) && ENABLED(DISABLE_J)
-    #define DISABLE_INACTIVE_J 1
-  #endif
-#else
-  #undef DISABLE_INACTIVE_J
-#endif
-
-#if HAS_K_AXIS
-  #if PIN_EXISTS(K_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(K))
-    #define HAS_K_ENABLE 1
-  #endif
-  #if PIN_EXISTS(K_DIR)
-    #define HAS_K_DIR 1
-  #endif
-  #if PIN_EXISTS(K_STEP)
-    #define HAS_K_STEP 1
-  #endif
-  #if PIN_EXISTS(K_MS1)
-    #define HAS_K_MS_PINS 1
-  #endif
-  #if !defined(DISABLE_INACTIVE_K) && ENABLED(DISABLE_K)
-    #define DISABLE_INACTIVE_K 1
-  #endif
-#else
-  #undef DISABLE_INACTIVE_K
-#endif
-
-#if HAS_U_AXIS
-  #if PIN_EXISTS(U_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(U))
-    #define HAS_U_ENABLE 1
-  #endif
-  #if PIN_EXISTS(U_DIR)
-    #define HAS_U_DIR 1
-  #endif
-  #if PIN_EXISTS(U_STEP)
-    #define HAS_U_STEP 1
-  #endif
-  #if PIN_EXISTS(U_MS1)
-    #define HAS_U_MS_PINS 1
-  #endif
-  #if !defined(DISABLE_INACTIVE_U) && ENABLED(DISABLE_U)
-    #define DISABLE_INACTIVE_U 1
-  #endif
-#else
-  #undef DISABLE_INACTIVE_U
-#endif
-
-#if HAS_V_AXIS
-  #if PIN_EXISTS(V_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(V))
-    #define HAS_V_ENABLE 1
-  #endif
-  #if PIN_EXISTS(V_DIR)
-    #define HAS_V_DIR 1
-  #endif
-  #if PIN_EXISTS(V_STEP)
-    #define HAS_V_STEP 1
-  #endif
-  #if PIN_EXISTS(V_MS1)
-    #define HAS_V_MS_PINS 1
-  #endif
-  #if !defined(DISABLE_INACTIVE_V) && ENABLED(DISABLE_V)
-    #define DISABLE_INACTIVE_V 1
-  #endif
-#else
-  #undef DISABLE_INACTIVE_V
-#endif
-
-#if HAS_W_AXIS
-  #if PIN_EXISTS(W_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(W))
-    #define HAS_W_ENABLE 1
-  #endif
-  #if PIN_EXISTS(W_DIR)
-    #define HAS_W_DIR 1
-  #endif
-  #if PIN_EXISTS(W_STEP)
-    #define HAS_W_STEP 1
-  #endif
-  #if PIN_EXISTS(W_MS1)
-    #define HAS_W_MS_PINS 1
-  #endif
-  #if !defined(DISABLE_INACTIVE_W) && ENABLED(DISABLE_W)
-    #define DISABLE_INACTIVE_W 1
-  #endif
-#else
-  #undef DISABLE_INACTIVE_W
-#endif
-
-// Extruder steppers and solenoids
-#if HAS_EXTRUDERS
-
-  #if PIN_EXISTS(E0_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(E0))
-    #define HAS_E0_ENABLE 1
-  #endif
-  #if PIN_EXISTS(E0_DIR)
-    #define HAS_E0_DIR 1
-  #endif
-  #if PIN_EXISTS(E0_STEP)
-    #define HAS_E0_STEP 1
-  #endif
-  #if PIN_EXISTS(E0_MS1)
-    #define HAS_E0_MS_PINS 1
-  #endif
-
-  #if E_STEPPERS > 1 || ENABLED(E_DUAL_STEPPER_DRIVERS)
-    #if PIN_EXISTS(E1_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(E1))
-      #define HAS_E1_ENABLE 1
-    #endif
-    #if PIN_EXISTS(E1_DIR)
-      #define HAS_E1_DIR 1
-    #endif
-    #if PIN_EXISTS(E1_STEP)
-      #define HAS_E1_STEP 1
-    #endif
-    #if PIN_EXISTS(E1_MS1)
-      #define HAS_E1_MS_PINS 1
-    #endif
-  #endif
-
-  #if E_STEPPERS > 2
-    #if PIN_EXISTS(E2_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(E2))
-      #define HAS_E2_ENABLE 1
-    #endif
-    #if PIN_EXISTS(E2_DIR)
-      #define HAS_E2_DIR 1
-    #endif
-    #if PIN_EXISTS(E2_STEP)
-      #define HAS_E2_STEP 1
-    #endif
-    #if PIN_EXISTS(E2_MS1)
-      #define HAS_E2_MS_PINS 1
-    #endif
-  #endif
-
-  #if E_STEPPERS > 3
-    #if PIN_EXISTS(E3_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(E3))
-      #define HAS_E3_ENABLE 1
-    #endif
-    #if PIN_EXISTS(E3_DIR)
-      #define HAS_E3_DIR 1
-    #endif
-    #if PIN_EXISTS(E3_STEP)
-      #define HAS_E3_STEP 1
-    #endif
-    #if PIN_EXISTS(E3_MS1)
-      #define HAS_E3_MS_PINS 1
-    #endif
-  #endif
-
-  #if E_STEPPERS > 4
-    #if PIN_EXISTS(E4_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(E4))
-      #define HAS_E4_ENABLE 1
-    #endif
-    #if PIN_EXISTS(E4_DIR)
-      #define HAS_E4_DIR 1
-    #endif
-    #if PIN_EXISTS(E4_STEP)
-      #define HAS_E4_STEP 1
-    #endif
-    #if PIN_EXISTS(E4_MS1)
-      #define HAS_E4_MS_PINS 1
-    #endif
-  #endif
-
-  #if E_STEPPERS > 5
-    #if PIN_EXISTS(E5_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(E5))
-      #define HAS_E5_ENABLE 1
-    #endif
-    #if PIN_EXISTS(E5_DIR)
-      #define HAS_E5_DIR 1
-    #endif
-    #if PIN_EXISTS(E5_STEP)
-      #define HAS_E5_STEP 1
-    #endif
-    #if PIN_EXISTS(E5_MS1)
-      #define HAS_E5_MS_PINS 1
-    #endif
-  #endif
-
-  #if E_STEPPERS > 6
-    #if PIN_EXISTS(E6_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(E6))
-      #define HAS_E6_ENABLE 1
-    #endif
-    #if PIN_EXISTS(E6_DIR)
-      #define HAS_E6_DIR 1
-    #endif
-    #if PIN_EXISTS(E6_STEP)
-      #define HAS_E6_STEP 1
-    #endif
-    #if PIN_EXISTS(E6_MS1)
-      #define HAS_E6_MS_PINS 1
-    #endif
-  #endif
-
-  #if E_STEPPERS > 7
-    #if PIN_EXISTS(E7_ENABLE) || (ENABLED(SOFTWARE_DRIVER_ENABLE) && AXIS_IS_TMC(E7))
-      #define HAS_E7_ENABLE 1
-    #endif
-    #if PIN_EXISTS(E7_DIR)
-      #define HAS_E7_DIR 1
-    #endif
-    #if PIN_EXISTS(E7_STEP)
-      #define HAS_E7_STEP 1
-    #endif
-    #if PIN_EXISTS(E7_MS1)
-      #define HAS_E7_MS_PINS 1
-    #endif
-  #endif
-
-  #if !defined(DISABLE_INACTIVE_E) && ENABLED(DISABLE_E)
-    #define DISABLE_INACTIVE_E 1
-  #endif
-#else
-  #undef DISABLE_INACTIVE_E
-#endif // HAS_EXTRUDERS
+#undef DISABLE_INACTIVE_I
+#undef DISABLE_INACTIVE_J
+#undef DISABLE_INACTIVE_K
+#undef DISABLE_INACTIVE_U
+#undef DISABLE_INACTIVE_V
+#undef DISABLE_INACTIVE_W
+#undef DISABLE_INACTIVE_E
 
 /**
  * Set solenoid flags if any features use solenoids
@@ -1987,7 +670,7 @@
  *   - Z_PROBE_SLED uses SOL1_PIN, when defined (unless EXT_SOLENOID is enabled)
  */
 #if ANY(EXT_SOLENOID, MANUAL_SOLENOID_CONTROL, PARKING_EXTRUDER, SOLENOID_PROBE, Z_PROBE_SLED)
-  #if PIN_EXISTS(SOL0) && (EITHER(MANUAL_SOLENOID_CONTROL, PARKING_EXTRUDER) || BOTH(EXT_SOLENOID, HAS_EXTRUDERS))
+  #if PIN_EXISTS(SOL0) && (EITHER(MANUAL_SOLENOID_CONTROL, PARKING_EXTRUDER))
     #define HAS_SOLENOID_0 1
   #endif
   #if PIN_EXISTS(SOL1) && (ANY(MANUAL_SOLENOID_CONTROL, PARKING_EXTRUDER, SOLENOID_PROBE, Z_PROBE_SLED) || TERN0(EXT_SOLENOID, E_STEPPERS > 1))
@@ -2089,32 +772,6 @@
     #endif
     #ifndef Y_SLAVE_ADDRESS
       #define Y_SLAVE_ADDRESS 0
-    #endif
-    #if HAS_DUAL_Y_STEPPERS
-      #if defined(Y2_STALL_SENSITIVITY) && AXIS_HAS_STALLGUARD(Y2)
-        #define Y2_SENSORLESS 1
-      #endif
-      #if AXIS_HAS_STEALTHCHOP(Y2)
-        #define Y2_HAS_STEALTHCHOP 1
-      #endif
-      #ifndef Y2_INTERPOLATE
-        #define Y2_INTERPOLATE Y_INTERPOLATE
-      #endif
-      #ifndef Y2_HOLD_MULTIPLIER
-        #define Y2_HOLD_MULTIPLIER Y_HOLD_MULTIPLIER
-      #endif
-      #ifndef Y2_SLAVE_ADDRESS
-        #define Y2_SLAVE_ADDRESS 0
-      #endif
-    #endif
-    #if HAS_U_AXIS
-      #define U_SPI_SENSORLESS U_SENSORLESS
-    #endif
-    #if HAS_V_AXIS
-      #define V_SPI_SENSORLESS V_SENSORLESS
-    #endif
-    #if HAS_W_AXIS
-      #define W_SPI_SENSORLESS W_SENSORLESS
     #endif
   #endif
 
@@ -2723,21 +1380,6 @@
   #define HAS_TEMP_REDUNDANT 1
 #endif
 
-#if ENABLED(JOYSTICK)
-  #if PIN_EXISTS(JOY_X)
-    #define HAS_JOY_ADC_X 1
-  #endif
-  #if PIN_EXISTS(JOY_Y)
-    #define HAS_JOY_ADC_Y 1
-  #endif
-  #if PIN_EXISTS(JOY_Z)
-    #define HAS_JOY_ADC_Z 1
-  #endif
-  #if PIN_EXISTS(JOY_EN)
-    #define HAS_JOY_ADC_EN 1
-  #endif
-#endif
-
 // Heaters
 #if PIN_EXISTS(HEATER_0)
   #define HAS_HEATER_0 1
@@ -2778,61 +1420,22 @@
   #undef PIDTEMPBED
 #endif
 
-#if HAS_TEMP_COOLER && PIN_EXISTS(COOLER)
-  #define HAS_COOLER 1
-  #ifndef COOLER_OVERSHOOT
-    #define COOLER_OVERSHOOT 2
-  #endif
-  #define COOLER_MIN_TARGET (COOLER_MINTEMP + (COOLER_OVERSHOOT))
-  #define COOLER_MAX_TARGET (COOLER_MAXTEMP - (COOLER_OVERSHOOT))
-#endif
-
-#if HAS_HEATED_BED || HAS_TEMP_CHAMBER
+#if HAS_HEATED_BED
   #define BED_OR_CHAMBER 1
 #endif
 
-#if HAS_TEMP_HOTEND || BED_OR_CHAMBER || HAS_TEMP_PROBE || HAS_TEMP_COOLER || HAS_TEMP_BOARD
+#if BED_OR_CHAMBER || HAS_TEMP_PROBE || HAS_TEMP_BOARD
   #define HAS_TEMP_SENSOR 1
 #endif
 
-#if HAS_TEMP_CHAMBER && PIN_EXISTS(HEATER_CHAMBER)
-  #define HAS_HEATED_CHAMBER 1
-  #ifndef CHAMBER_OVERSHOOT
-    #define CHAMBER_OVERSHOOT 10
-  #endif
-  #define CHAMBER_MAX_TARGET (CHAMBER_MAXTEMP - (CHAMBER_OVERSHOOT))
-#else
-  #undef PIDTEMPCHAMBER
-#endif
-
-// PID heating
-#if ANY(PIDTEMP, PIDTEMPBED, PIDTEMPCHAMBER)
-  #define HAS_PID_HEATING 1
-#endif
-
 // Thermal protection
-#if !HAS_HEATED_BED
-  #undef THERMAL_PROTECTION_BED
-#endif
-#if ENABLED(THERMAL_PROTECTION_HOTENDS) && WATCH_TEMP_PERIOD > 0
-  #define WATCH_HOTENDS 1
-#endif
 #if ENABLED(THERMAL_PROTECTION_BED) && WATCH_BED_TEMP_PERIOD > 0
   #define WATCH_BED 1
 #endif
-#if BOTH(HAS_HEATED_CHAMBER, THERMAL_PROTECTION_CHAMBER) && WATCH_CHAMBER_TEMP_PERIOD > 0
-  #define WATCH_CHAMBER 1
-#endif
-#if BOTH(HAS_COOLER, THERMAL_PROTECTION_COOLER) && WATCH_COOLER_TEMP_PERIOD > 0
-  #define WATCH_COOLER 1
-#endif
-#if NONE(THERMAL_PROTECTION_HOTENDS, THERMAL_PROTECTION_CHAMBER, THERMAL_PROTECTION_BED, THERMAL_PROTECTION_COOLER)
+#if NONE(THERMAL_PROTECTION_BED)
   #undef THERMAL_PROTECTION_VARIANCE_MONITOR
 #endif
-#if  (ENABLED(THERMAL_PROTECTION_HOTENDS) || !EXTRUDERS) \
-  && (ENABLED(THERMAL_PROTECTION_BED)     || !HAS_HEATED_BED) \
-  && (ENABLED(THERMAL_PROTECTION_CHAMBER) || !HAS_HEATED_CHAMBER) \
-  && (ENABLED(THERMAL_PROTECTION_COOLER)  || !HAS_COOLER)
+#if (ENABLED(THERMAL_PROTECTION_BED)  || !HAS_HEATED_BED)
   #define THERMALLY_SAFE 1
 #endif
 
@@ -2919,51 +1522,6 @@
   #undef AUTO_POWER_CHAMBER_FAN
 #endif
 
-// Print Cooling fans (limit)
-#ifdef NUM_M106_FANS
-  #define MAX_FANS NUM_M106_FANS
-#else
-  #define MAX_FANS 8  // Max supported fans
-#endif
-
-#define _NOT_E_AUTO(N,F) (E##N##_AUTO_FAN_PIN != FAN##F##_PIN)
-#define _HAS_FAN(F) (PIN_EXISTS(FAN##F) \
-                     && CONTROLLER_FAN_PIN != FAN##F##_PIN \
-                     && _NOT_E_AUTO(0,F) \
-                     && _NOT_E_AUTO(1,F) \
-                     && _NOT_E_AUTO(2,F) \
-                     && _NOT_E_AUTO(3,F) \
-                     && _NOT_E_AUTO(4,F) \
-                     && _NOT_E_AUTO(5,F) \
-                     && _NOT_E_AUTO(6,F) \
-                     && _NOT_E_AUTO(7,F) \
-                     && F < MAX_FANS)
-#if PIN_EXISTS(FAN)
-  #define HAS_FAN0 1
-#endif
-#if _HAS_FAN(1)
-  #define HAS_FAN1 1
-#endif
-#if _HAS_FAN(2)
-  #define HAS_FAN2 1
-#endif
-#if _HAS_FAN(3)
-  #define HAS_FAN3 1
-#endif
-#if _HAS_FAN(4)
-  #define HAS_FAN4 1
-#endif
-#if _HAS_FAN(5)
-  #define HAS_FAN5 1
-#endif
-#if _HAS_FAN(6)
-  #define HAS_FAN6 1
-#endif
-#if _HAS_FAN(7)
-  #define HAS_FAN7 1
-#endif
-#undef _NOT_E_AUTO
-#undef _HAS_FAN
 
 #if BED_OR_CHAMBER || HAS_FAN0
   #define BED_OR_CHAMBER_OR_FAN 1
@@ -2975,30 +1533,7 @@
 #ifndef FAN_INVERTING
   #define FAN_INVERTING false
 #endif
-
-#if HAS_FAN7
-  #define FAN_COUNT 8
-#elif HAS_FAN6
-  #define FAN_COUNT 7
-#elif HAS_FAN5
-  #define FAN_COUNT 6
-#elif HAS_FAN4
-  #define FAN_COUNT 5
-#elif HAS_FAN3
-  #define FAN_COUNT 4
-#elif HAS_FAN2
-  #define FAN_COUNT 3
-#elif HAS_FAN1
-  #define FAN_COUNT 2
-#elif HAS_FAN0
-  #define FAN_COUNT 1
-#else
-  #define FAN_COUNT 0
-#endif
-
-#if FAN_COUNT > 0
-  #define HAS_FAN 1
-#endif
+#define FAN_COUNT 0
 
 /**
  * Part Cooling fan multipliexer
@@ -3107,9 +1642,7 @@
 #if PIN_EXISTS(DIGIPOTSS)
   #define HAS_MOTOR_CURRENT_SPI 1
 #endif
-#if HAS_EXTRUDERS && PIN_EXISTS(MOTOR_CURRENT_PWM_E)
-  #define HAS_MOTOR_CURRENT_PWM_E 1
-#endif
+
 #if HAS_MOTOR_CURRENT_PWM_E || ANY_PIN(MOTOR_CURRENT_PWM_X, MOTOR_CURRENT_PWM_Y, MOTOR_CURRENT_PWM_XY, MOTOR_CURRENT_PWM_Z, MOTOR_CURRENT_PWM_I, MOTOR_CURRENT_PWM_J, MOTOR_CURRENT_PWM_K, MOTOR_CURRENT_PWM_U, MOTOR_CURRENT_PWM_V, MOTOR_CURRENT_PWM_W)
   #define HAS_MOTOR_CURRENT_PWM 1
 #endif
@@ -3272,36 +1805,7 @@
   #define WRITE_HEATER_BED(v) WRITE(HEATER_BED_PIN, (v) ^ HEATER_BED_INVERTING)
 #endif
 
-/**
- * Heated chamber requires settings
- */
-#if HAS_HEATED_CHAMBER
-  #ifndef MIN_CHAMBER_POWER
-    #define MIN_CHAMBER_POWER 0
-  #endif
-  #ifndef MAX_CHAMBER_POWER
-    #define MAX_CHAMBER_POWER 255
-  #endif
-  #ifndef HEATER_CHAMBER_INVERTING
-    #define HEATER_CHAMBER_INVERTING false
-  #endif
-  #define WRITE_HEATER_CHAMBER(v) WRITE(HEATER_CHAMBER_PIN, (v) ^ HEATER_CHAMBER_INVERTING)
-#endif
-
-/**
- * Laser Cooling requires settings
- */
-#if HAS_COOLER
-  #ifndef MAX_COOLER_POWER
-    #define MAX_COOLER_POWER 255
-  #endif
-  #ifndef COOLER_INVERTING
-    #define COOLER_INVERTING true
-  #endif
-  #define WRITE_HEATER_COOLER(v) WRITE(COOLER_PIN, (v) ^ COOLER_INVERTING)
-#endif
-
-#if HAS_HOTEND || HAS_HEATED_BED || HAS_HEATED_CHAMBER || HAS_COOLER
+#if HAS_HEATED_BED
   #define HAS_TEMPERATURE 1
 #endif
 
@@ -3327,17 +1831,6 @@
 #if !HAS_PREHEAT
   #undef PREHEAT_SHORTCUT_MENU_ITEM
   #undef DGUS_PREHEAT_UI
-#endif
-
-/**
- * MIN/MAX case light PWM scaling
- */
-#if ENABLED(CASE_LIGHT_ENABLE)
-  #ifndef CASE_LIGHT_MAX_PWM
-    #define CASE_LIGHT_MAX_PWM 255
-  #elif !WITHIN(CASE_LIGHT_MAX_PWM, 1, 255)
-    #error "CASE_LIGHT_MAX_PWM must be a value from 1 to 255."
-  #endif
 #endif
 
 /**
@@ -3427,32 +1920,6 @@
 #endif
 
 /**
- * Advanced Pause - Filament Change
- */
-#if ENABLED(ADVANCED_PAUSE_FEATURE)
-  #if ANY(HAS_MARLINUI_MENU, EXTENSIBLE_UI, DWIN_LCD_PROUI, DWIN_CREALITY_LCD_JYERSUI) || BOTH(EMERGENCY_PARSER, HOST_PROMPT_SUPPORT)
-    #define M600_PURGE_MORE_RESUMABLE 1
-  #endif
-  #ifndef FILAMENT_CHANGE_SLOW_LOAD_LENGTH
-    #define FILAMENT_CHANGE_SLOW_LOAD_LENGTH 0
-  #endif
-#endif
-
-#if HAS_MULTI_EXTRUDER && !defined(TOOLCHANGE_FS_EXTRA_PRIME)
-  #define TOOLCHANGE_FS_EXTRA_PRIME 0
-#endif
-
-/**
- * Only constrain Z on DELTA / SCARA machines
- */
-#if IS_KINEMATIC
-  #undef MIN_SOFTWARE_ENDSTOP_X
-  #undef MIN_SOFTWARE_ENDSTOP_Y
-  #undef MAX_SOFTWARE_ENDSTOP_X
-  #undef MAX_SOFTWARE_ENDSTOP_Y
-#endif
-
-/**
  * Bed Probing bounds
  */
 
@@ -3460,46 +1927,17 @@
   #define PROBING_MARGIN 0
 #endif
 
-#if IS_KINEMATIC
-  #undef PROBING_MARGIN_LEFT
-  #undef PROBING_MARGIN_RIGHT
-  #undef PROBING_MARGIN_FRONT
-  #undef PROBING_MARGIN_BACK
-  #define PROBING_MARGIN_LEFT 0
-  #define PROBING_MARGIN_RIGHT 0
-  #define PROBING_MARGIN_FRONT 0
-  #define PROBING_MARGIN_BACK 0
-#else
-  #ifndef PROBING_MARGIN_LEFT
-    #define PROBING_MARGIN_LEFT PROBING_MARGIN
-  #endif
-  #ifndef PROBING_MARGIN_RIGHT
-    #define PROBING_MARGIN_RIGHT PROBING_MARGIN
-  #endif
-  #ifndef PROBING_MARGIN_FRONT
-    #define PROBING_MARGIN_FRONT PROBING_MARGIN
-  #endif
-  #ifndef PROBING_MARGIN_BACK
-    #define PROBING_MARGIN_BACK PROBING_MARGIN
-  #endif
+#ifndef PROBING_MARGIN_LEFT
+  #define PROBING_MARGIN_LEFT PROBING_MARGIN
 #endif
-
-#if ENABLED(DELTA)
-  /**
-   * Delta radius/rod trimmers/angle trimmers
-   */
-  #ifndef DELTA_ENDSTOP_ADJ
-    #define DELTA_ENDSTOP_ADJ { 0, 0, 0 }
-  #endif
-  #ifndef DELTA_TOWER_ANGLE_TRIM
-    #define DELTA_TOWER_ANGLE_TRIM { 0, 0, 0 }
-  #endif
-  #ifndef DELTA_RADIUS_TRIM_TOWER
-    #define DELTA_RADIUS_TRIM_TOWER { 0, 0, 0 }
-  #endif
-  #ifndef DELTA_DIAGONAL_ROD_TRIM_TOWER
-    #define DELTA_DIAGONAL_ROD_TRIM_TOWER { 0, 0, 0 }
-  #endif
+#ifndef PROBING_MARGIN_RIGHT
+  #define PROBING_MARGIN_RIGHT PROBING_MARGIN
+#endif
+#ifndef PROBING_MARGIN_FRONT
+  #define PROBING_MARGIN_FRONT PROBING_MARGIN
+#endif
+#ifndef PROBING_MARGIN_BACK
+  #define PROBING_MARGIN_BACK PROBING_MARGIN
 #endif
 
 #ifndef DEFAULT_LEVELING_FADE_HEIGHT
@@ -3514,21 +1952,11 @@
  * Default mesh area is an area with an inset margin on the print area.
  */
 #if EITHER(MESH_BED_LEVELING, AUTO_BED_LEVELING_UBL)
-  #if IS_KINEMATIC
-    // Probing points may be verified at compile time within the radius
-    // using static_assert(HYPOT2(X2-X1,Y2-Y1)<=sq(DELTA_PRINTABLE_RADIUS),"bad probe point!")
-    // so that may be added to SanityCheck.h in the future.
-    #define _MESH_MIN_X (X_MIN_BED + MESH_INSET)
-    #define _MESH_MIN_Y (Y_MIN_BED + MESH_INSET)
-    #define _MESH_MAX_X (X_MAX_BED - (MESH_INSET))
-    #define _MESH_MAX_Y (Y_MAX_BED - (MESH_INSET))
-  #else
-    // Boundaries for Cartesian probing based on set limits
-    #define _MESH_MIN_X (_MAX(X_MIN_BED + MESH_INSET, X_MIN_POS))  // UBL is careful not to probe off the bed.  It does not
-    #define _MESH_MIN_Y (_MAX(Y_MIN_BED + MESH_INSET, Y_MIN_POS))  // need NOZZLE_TO_PROBE_OFFSET in the mesh dimensions
-    #define _MESH_MAX_X (_MIN(X_MAX_BED - (MESH_INSET), X_MAX_POS))
-    #define _MESH_MAX_Y (_MIN(Y_MAX_BED - (MESH_INSET), Y_MAX_POS))
-  #endif
+  // Boundaries for Cartesian probing based on set limits
+  #define _MESH_MIN_X (_MAX(X_MIN_BED + MESH_INSET, X_MIN_POS))  // UBL is careful not to probe off the bed.  It does not
+  #define _MESH_MIN_Y (_MAX(Y_MIN_BED + MESH_INSET, Y_MIN_POS))  // need NOZZLE_TO_PROBE_OFFSET in the mesh dimensions
+  #define _MESH_MAX_X (_MIN(X_MAX_BED - (MESH_INSET), X_MAX_POS))
+  #define _MESH_MAX_Y (_MIN(Y_MAX_BED - (MESH_INSET), Y_MAX_POS))
 
   // These may be overridden in Configuration.h if a smaller area is desired
   #ifndef MESH_MIN_X
@@ -3631,9 +2059,6 @@
   #ifndef Z_CLEARANCE_MULTI_PROBE
     #define Z_CLEARANCE_MULTI_PROBE Z_CLEARANCE_BETWEEN_PROBES
   #endif
-  #if ENABLED(BLTOUCH) && !defined(BLTOUCH_DELAY)
-    #define BLTOUCH_DELAY 500
-  #endif
 #endif
 
 // Define a starting height for measuring manual probe points
@@ -3659,8 +2084,6 @@
     #define HAS_HOME_OFFSET 1       // The home offset also shifts the coordinate space
     #define HAS_WORKSPACE_OFFSET 1  // Cumulative offset to workspace to save some calculation
     #define HAS_M206_COMMAND 1      // M206 sets the home offset for Cartesian machines
-  #elif IS_SCARA
-    #define HAS_SCARA_OFFSET 1      // The SCARA home offset applies only on G28
   #endif
 #endif
 
@@ -3675,7 +2098,7 @@
 #endif
 
 // Add commands that need sub-codes to this list
-#if ANY(G38_PROBE_TARGET, CNC_COORDINATE_SYSTEMS, POWER_LOSS_RECOVERY)
+#if ANY(G38_PROBE_TARGET, CNC_COORDINATE_SYSTEMS)
   #define USE_GCODE_SUBCODES 1
 #endif
 
@@ -3728,11 +2151,6 @@
   #ifndef SDSORT_CACHE_VFATS
     #define SDSORT_CACHE_VFATS 2
   #endif
-#endif
-
-// Fallback SPI Speed for SD
-#if ENABLED(SDSUPPORT) && !defined(SD_SPI_SPEED)
-  #define SD_SPI_SPEED SPI_FULL_SPEED
 #endif
 
 #if HAS_WIRED_LCD

@@ -28,9 +28,7 @@
 
   enum PromptReason : uint8_t {
     PROMPT_NOT_DEFINED,
-    PROMPT_FILAMENT_RUNOUT,
     PROMPT_USER_CONTINUE,
-    PROMPT_FILAMENT_RUNOUT_REHEAT,
     PROMPT_PAUSE_RESUME,
     PROMPT_INFO
   };
@@ -100,11 +98,6 @@ class HostUI {
     static void prompt_open(const PromptReason reason, FSTR_P const pstr, FSTR_P const btn1=nullptr, FSTR_P const btn2=nullptr) {
       if (host_prompt_reason == PROMPT_NOT_DEFINED) prompt_do(reason, pstr, btn1, btn2);
     }
-
-    #if ENABLED(ADVANCED_PAUSE_FEATURE)
-      static void filament_load_prompt();
-    #endif
-
   #endif
 
 };

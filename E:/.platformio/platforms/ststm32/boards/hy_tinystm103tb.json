@@ -2,7 +2,7 @@
   "build": {
     "core": "stm32",
     "cpu": "cortex-m3",
-    "extra_flags": "-DSTM32F1 -DSTM32F103xB",
+    "extra_flags": "-DSTM32F103xB",
     "f_cpu": "72000000L",
     "hwids": [
       [
@@ -16,7 +16,7 @@
     ],
     "mcu": "stm32f103tbu6",
     "product_line": "STM32F103xB",
-    "variant": "STM32F1xx/F103T(8-B)U"
+    "variant": "HY_TinySTM103T"
   },
   "debug": {
     "jlink_device": "STM32F103TB",

@@ -27,16 +27,11 @@
 #include "menu.h"
 #include "../../module/planner.h"
 #include "../../module/motion.h"
-#include "../../module/printcounter.h"
 #include "../../module/temperature.h"
 #include "../../gcode/queue.h"
 
 #if HAS_SOUND
   #include "../../libs/buzzer.h"
-#endif
-
-#if ENABLED(BABYSTEP_ZPROBE_OFFSET)
-  #include "../../module/probe.h"
 #endif
 
 #if HAS_LEVELING
@@ -175,8 +170,6 @@ void MarlinUI::goto_screen(screenFunc_t screen, const uint16_t encoder/*=0*/, co
 
     TERN_(HAS_TOUCH_BUTTONS, repeat_delay = BUTTON_DELAY_MENU);
 
-    TERN_(LCD_SET_PROGRESS_MANUALLY, progress_reset());
-
     #if BOTH(DOUBLECLICK_FOR_Z_BABYSTEPPING, BABYSTEPPING)
       static millis_t doubleclick_expire_ms = 0;
       // Going to menu_main from status screen? Remember first click time.
@@ -187,7 +180,7 @@ void MarlinUI::goto_screen(screenFunc_t screen, const uint16_t encoder/*=0*/, co
       }
       else if (screen == status_screen && currentScreen == menu_main && PENDING(millis(), doubleclick_expire_ms)) {
         if (BABYSTEP_ALLOWED())
-          screen = TERN(BABYSTEP_ZPROBE_OFFSET, lcd_babystep_zoffset, lcd_babystep_z);
+          screen = lcd_babystep_z;
         else {
           #if ENABLED(MOVE_Z_WHEN_IDLE)
             ui.manual_move.menu_scale = MOVE_Z_IDLE_MULTIPLICATOR;
@@ -287,51 +280,6 @@ void scroll_screen(const uint8_t limit, const bool is_menu) {
   }
 
 #endif
-
-#if ENABLED(BABYSTEP_ZPROBE_OFFSET)
-
-  #include "../../feature/babystep.h"
-
-  void lcd_babystep_zoffset() {
-    if (ui.use_click()) return ui.goto_previous_screen_no_defer();
-    ui.defer_status_screen();
-    const bool do_probe = DISABLED(BABYSTEP_HOTEND_Z_OFFSET) || active_extruder == 0;
-    if (ui.encoderPosition) {
-      const int16_t babystep_increment = int16_t(ui.encoderPosition) * (BABYSTEP_SIZE_Z);
-      ui.encoderPosition = 0;
-
-      const float diff = planner.mm_per_step[Z_AXIS] * babystep_increment,
-                  new_probe_offset = probe.offset.z + diff,
-                  new_offs = TERN(BABYSTEP_HOTEND_Z_OFFSET
-                    , do_probe ? new_probe_offset : hotend_offset[active_extruder].z - diff
-                    , new_probe_offset
-                  );
-      if (WITHIN(new_offs, Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX)) {
-
-        babystep.add_steps(Z_AXIS, babystep_increment);
-
-        if (do_probe)
-          probe.offset.z = new_offs;
-        else
-          TERN(BABYSTEP_HOTEND_Z_OFFSET, hotend_offset[active_extruder].z = new_offs, NOOP);
-
-        ui.refresh(LCDVIEW_CALL_REDRAW_NEXT);
-      }
-    }
-    if (ui.should_draw()) {
-      if (do_probe) {
-        MenuEditItemBase::draw_edit_screen(GET_TEXT_F(MSG_ZPROBE_ZOFFSET), BABYSTEP_TO_STR(probe.offset.z));
-        TERN_(BABYSTEP_ZPROBE_GFX_OVERLAY, ui.zoffset_overlay(probe.offset.z));
-      }
-      else {
-        #if ENABLED(BABYSTEP_HOTEND_Z_OFFSET)
-          MenuEditItemBase::draw_edit_screen(GET_TEXT_F(MSG_HOTEND_OFFSET_Z), ftostr54sign(hotend_offset[active_extruder].z));
-        #endif
-      }
-    }
-  }
-
-#endif // BABYSTEP_ZPROBE_OFFSET
 
 void _lcd_draw_homing() {
   if (ui.should_draw()) {

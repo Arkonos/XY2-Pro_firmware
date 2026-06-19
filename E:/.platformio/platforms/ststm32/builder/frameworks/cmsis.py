@@ -131,10 +131,5 @@ env.BuildSources(
     src_filter=[
         "-<*>",
         "+<%s>" % board.get("build.cmsis.system_file", "system_%sxx.c" % mcu[0:7]),
-        "+<gcc/%s>"
-        % board.get(
-            "build.cmsis.startup_file",
-            "startup_%s.S" % product_line.lower()
-        )
-    ]
+        "+<gcc/startup_%s.S>" % product_line.lower()]
 )

@@ -1,7 +1,7 @@
 {
   "build": {
     "cpu": "cortex-m0plus",
-    "extra_flags": "-DSTM32L0 -DSTM32L053xx",
+    "extra_flags": "-DSTM32L053xx",
     "f_cpu": "32000000L",
     "mcu": "stm32l053c8t6",
     "product_line": "STM32L053xx"
@@ -16,10 +16,11 @@
     ],
     "openocd_board": "stm32l0discovery",
     "openocd_target": "stm32l0",
-    "svd_path": "STM32L053.svd"
+    "svd_path": "STM32L053x.svd"
   },
   "frameworks": [
     "cmsis",
+    "mbed",
     "stm32cube",
     "libopencm3"
   ],

@@ -25,12 +25,6 @@
 
 #include "../../MarlinCore.h"
 
-#if BOTH(FWRETRACT, FWRETRACT_AUTORETRACT)
-  #include "../../feature/fwretract.h"
-#endif
-
-#include "../../sd/cardreader.h"
-
 #if ENABLED(NANODLP_Z_SYNC)
   #include "../../module/planner.h"
 #endif
@@ -53,12 +47,6 @@ void GcodeSuite::G0_G1(TERN_(HAS_FAST_MOVES, const bool fast_move/*=false*/)) {
             (parser.seen_test('X') ? _BV(X_AXIS) : 0),
           | (parser.seen_test('Y') ? _BV(Y_AXIS) : 0),
           | (parser.seen_test('Z') ? _BV(Z_AXIS) : 0),
-          | (parser.seen_test(AXIS4_NAME) ? _BV(I_AXIS) : 0),
-          | (parser.seen_test(AXIS5_NAME) ? _BV(J_AXIS) : 0),
-          | (parser.seen_test(AXIS6_NAME) ? _BV(K_AXIS) : 0),
-          | (parser.seen_test(AXIS7_NAME) ? _BV(U_AXIS) : 0),
-          | (parser.seen_test(AXIS8_NAME) ? _BV(V_AXIS) : 0),
-          | (parser.seen_test(AXIS9_NAME) ? _BV(W_AXIS) : 0))
       )
     #endif
   ) {
@@ -74,7 +62,7 @@ void GcodeSuite::G0_G1(TERN_(HAS_FAST_MOVES, const bool fast_move/*=false*/)) {
       #endif
     #endif
 
-    get_destination_from_command();                 // Get X Y [Z[I[J[K]]]] [E] F (and set cutter power)
+    get_destination_from_command();                 // Get X Y [Z[I[J[K]]]] [E] F (and set cutte power)
 
     #ifdef G0_FEEDRATE
       if (fast_move) {
@@ -86,31 +74,7 @@ void GcodeSuite::G0_G1(TERN_(HAS_FAST_MOVES, const bool fast_move/*=false*/)) {
         #endif
       }
     #endif
-
-    #if BOTH(FWRETRACT, FWRETRACT_AUTORETRACT)
-
-      if (MIN_AUTORETRACT <= MAX_AUTORETRACT) {
-        // When M209 Autoretract is enabled, convert E-only moves to firmware retract/recover moves
-        if (fwretract.autoretract_enabled && parser.seen_test('E')
-          && !parser.seen(STR_AXES_MAIN)
-        ) {
-          const float echange = destination.e - current_position.e;
-          // Is this a retract or recover move?
-          if (WITHIN(ABS(echange), MIN_AUTORETRACT, MAX_AUTORETRACT) && fwretract.retracted[active_extruder] == (echange > 0.0)) {
-            current_position.e = destination.e;       // Hide a G1-based retract/recover from calculations
-            sync_plan_position_e();                   // AND from the planner
-            return fwretract.retract(echange < 0.0);  // Firmware-based retract/recover (double-retract ignored)
-          }
-        }
-      }
-
-    #endif // FWRETRACT
-
-    #if IS_SCARA
-      fast_move ? prepare_fast_move_to_destination() : prepare_line_to_destination();
-    #else
-      prepare_line_to_destination();
-    #endif
+    prepare_line_to_destination();
 
     #ifdef G0_FEEDRATE
       // Restore the motion mode feedrate
