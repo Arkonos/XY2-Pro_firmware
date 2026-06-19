@@ -19,7 +19,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-E:/.platformio/.cache/
+.platformio
+E:/
 
 # Generated files
 _Version.h
