@@ -321,6 +321,9 @@ void __O2 Endstops::report_states() {
   #if HAS_Z_MIN
     ES_REPORT(Z_MIN);
   #endif
+  #if HAS_Z_MAX
+    ES_REPORT(Z_MAX);
+  #endif
   #if ENABLED(PROBE_ACTIVATION_SWITCH)
     print_es_state(probe_switch_activated(), F(STR_PROBE_EN));
   #endif

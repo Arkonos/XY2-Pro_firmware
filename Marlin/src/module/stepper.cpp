@@ -2030,7 +2030,12 @@ uint32_t Stepper::block_phase_isr() {
 
       TERN_(MIXING_EXTRUDER, mixer.stepper_setup(current_block->b_color));
 
-      E_TERN_(stepper_extruder = current_block->extruder);
+      if ( current_block->direction_bits != last_direction_bits
+        || stepper_extruder != last_moved_extruder
+      ) {
+        E_TERN_(last_moved_extruder = stepper_extruder);
+        set_directions(current_block->direction_bits);
+      }
 
       // If the endstop is already pressed, endstop interrupts won't invoke
       // endstop_triggered and the move will grind. So check here for a
