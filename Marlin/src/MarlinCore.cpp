@@ -290,7 +290,7 @@ inline void manage_inactivity(const bool no_stepper_sleep=false) {
   const bool do_reset_timeout = no_stepper_sleep
                                || TERN0(PAUSE_PARK_NO_STEPPER_TIMEOUT, 0);
 
-  // Reset both the M18/M84 activity timeout and the M85 max 'kill' timeout
+  // Reset both the M18/M84 activity timeout
   if (do_reset_timeout) gcode.reset_stepper_timeout(ms);
 
   if (gcode.stepper_max_timed_out(ms)) {
@@ -301,37 +301,7 @@ inline void manage_inactivity(const bool no_stepper_sleep=false) {
   }
 
   const bool has_blocks = planner.has_blocks_queued();  // Any moves in the planner?
-  if (has_blocks) gcode.reset_stepper_timeout(ms);      // Reset timeout for M18/M84, M85 max 'kill'
-
-  // M18 / M84 : Handle steppers inactive time timeout
-  #if HAS_DISABLE_INACTIVE_AXIS
-    if (gcode.stepper_inactive_time) {
-
-      static bool already_shutdown_steppers; // = false
-
-      if (!has_blocks && !do_reset_timeout && gcode.stepper_inactive_timeout()) {
-        if (!already_shutdown_steppers) {
-          already_shutdown_steppers = true;
-
-          // Individual axes will be disabled if configured
-          TERN_(DISABLE_INACTIVE_X, stepper.disable_axis(X_AXIS));
-          TERN_(DISABLE_INACTIVE_Y, stepper.disable_axis(Y_AXIS));
-          TERN_(DISABLE_INACTIVE_Z, stepper.disable_axis(Z_AXIS));
-          TERN_(DISABLE_INACTIVE_I, stepper.disable_axis(I_AXIS));
-          TERN_(DISABLE_INACTIVE_J, stepper.disable_axis(J_AXIS));
-          TERN_(DISABLE_INACTIVE_K, stepper.disable_axis(K_AXIS));
-          TERN_(DISABLE_INACTIVE_U, stepper.disable_axis(U_AXIS));
-          TERN_(DISABLE_INACTIVE_V, stepper.disable_axis(V_AXIS));
-          TERN_(DISABLE_INACTIVE_W, stepper.disable_axis(W_AXIS));
-          TERN_(DISABLE_INACTIVE_E, stepper.disable_e_steppers());
-
-          TERN_(AUTO_BED_LEVELING_UBL, bedlevel.steppers_were_disabled());
-        }
-      }
-      else
-        already_shutdown_steppers = false;
-    }
-  #endif
+  if (has_blocks) gcode.reset_stepper_timeout(ms);      // Reset timeout for M18/M84
 
   #if ENABLED(PHOTO_GCODE) && PIN_EXISTS(CHDK)
     // Check if CHDK should be set to LOW (after M240 set it HIGH)

@@ -57,10 +57,6 @@ GcodeSuite gcode;
 millis_t GcodeSuite::previous_move_ms = 0,
          GcodeSuite::max_inactive_time = 0;
 
-#if HAS_DISABLE_INACTIVE_AXIS
-  millis_t GcodeSuite::stepper_inactive_time = SEC_TO_MS(DEFAULT_STEPPER_DEACTIVE_TIME);
-#endif
-
 // Relative motion mode for each logical axis
 static constexpr xyze_bool_t ar_init = AXIS_RELATIVE_MODES;
 axis_bits_t GcodeSuite::axis_relative = 0 LOGICAL_AXIS_GANG(
@@ -481,7 +477,6 @@ void GcodeSuite::process_parsed_command(const bool no_ok/*=false*/) {
       case 81: M81(); break;                                      // M81: Turn off Power, including Power Supply, if possible
 
       case 18: case 84: M18_M84(); break;                         // M18/M84: Disable Steppers / Set Timeout
-      case 85: M85(); break;                                      // M85: Set inactivity stepper shutdown timeout
       case 92: M92(); break;                                      // M92: Set the steps-per-unit for one or more axes
       case 114: M114(); break;                                    // M114: Report current position
       case 115: M115(); break;                                    // M115: Report capabilities

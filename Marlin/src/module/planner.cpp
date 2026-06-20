@@ -159,10 +159,6 @@ uint32_t Planner::acceleration_long_cutoff;
 xyze_float_t Planner::previous_speed;
 float Planner::previous_nominal_speed;
 
-#if ENABLED(DISABLE_INACTIVE_EXTRUDER)
-  last_move_t Planner::g_uc_extruder_last_move[E_STEPPERS] = { 0 };
-#endif
-
 #ifdef XY_FREQUENCY_LIMIT
   int8_t Planner::xy_freq_limit_hz = XY_FREQUENCY_LIMIT;
   float Planner::xy_freq_min_speed_factor = (XY_FREQUENCY_MIN_PERCENT) * 0.01f;

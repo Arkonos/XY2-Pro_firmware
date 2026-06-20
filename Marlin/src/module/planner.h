@@ -238,10 +238,6 @@ typedef struct {
   #endif
 } skew_factor_t;
 
-#if ENABLED(DISABLE_INACTIVE_EXTRUDER)
-  typedef IF<(BLOCK_BUFFER_SIZE > 64), uint16_t, uint8_t>::type last_move_t;
-#endif
-
 #if ENABLED(ARC_SUPPORT)
   #define HINTS_CURVE_RADIUS
   #define HINTS_SAFE_EXIT_SPEED
@@ -367,11 +363,6 @@ class Planner {
 
     #if ENABLED(ENABLE_LEVELING_FADE_HEIGHT)
       static float last_fade_z;
-    #endif
-
-    #if ENABLED(DISABLE_INACTIVE_EXTRUDER)
-      // Counters to manage disabling inactive extruder steppers
-      static last_move_t g_uc_extruder_last_move[E_STEPPERS];
     #endif
 
     #if HAS_WIRED_LCD

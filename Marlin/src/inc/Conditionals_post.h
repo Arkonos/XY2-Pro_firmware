@@ -629,8 +629,6 @@
   #if PIN_EXISTS(Y_STEP)
     #define HAS_Y_STEP 1
   #endif
-#else
-  #undef DISABLE_INACTIVE_Y
 #endif
 
 #if HAS_Z_AXIS
@@ -646,20 +644,7 @@
   #if PIN_EXISTS(Z_MS1)
     #define HAS_Z_MS_PINS 1
   #endif
-  #if !defined(DISABLE_INACTIVE_Z) && ENABLED(DISABLE_Z)
-    #define DISABLE_INACTIVE_Z 1
-  #endif
-#else
-  #undef DISABLE_INACTIVE_Z
 #endif
-
-#undef DISABLE_INACTIVE_I
-#undef DISABLE_INACTIVE_J
-#undef DISABLE_INACTIVE_K
-#undef DISABLE_INACTIVE_U
-#undef DISABLE_INACTIVE_V
-#undef DISABLE_INACTIVE_W
-#undef DISABLE_INACTIVE_E
 
 /**
  * Set solenoid flags if any features use solenoids
