@@ -125,12 +125,6 @@
       return measured_z;
     };
 
-    #if ENABLED(BLTOUCH)
-      // Make sure any BLTouch error condition is cleared
-      bltouch_command(BLTOUCH_RESET, BLTOUCH_RESET_DELAY);
-      set_bltouch_deployed(false);
-    #endif
-
     bool do_bed_cal = parser.boolval('B'), do_probe_cal = parser.boolval('P');
     if (!do_bed_cal && !do_probe_cal) do_bed_cal = do_probe_cal = true;
 

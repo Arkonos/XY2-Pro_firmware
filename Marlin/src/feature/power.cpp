@@ -193,11 +193,7 @@ void Power::power_off() {
     #endif
 
     #if BOTH(USE_CONTROLLER_FAN, AUTO_POWER_CONTROLLERFAN)
-      #if TRONXY_UI
-      if (controllerFanState()) return true;
-      #else
       if (controllerFan.state()) return true;
-      #endif
     #endif
 
     if (TERN0(AUTO_POWER_CHAMBER_FAN, thermalManager.chamberfan_speed))

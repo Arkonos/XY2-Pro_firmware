@@ -33,7 +33,6 @@
 #if ENABLED(SDCARD_EEPROM_EMULATION)
 
 #include "../shared/eeprom_api.h"
-#include "../../sd/cardreader.h"
 
 #define EEPROM_FILENAME "eeprom.dat"
 

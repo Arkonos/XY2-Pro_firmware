@@ -35,7 +35,6 @@
 #include "../libs/hex_print.h"
 #include "../HAL/shared/eeprom_if.h"
 #include "../HAL/shared/Delay.h"
-#include "../sd/cardreader.h"
 #include "../MarlinCore.h" // for kill
 
 void dump_delay_accuracy_check();
@@ -197,59 +196,6 @@ void GcodeSuite::D(const int16_t dcode) {
       hal.isr_on();
       SERIAL_ECHOLNPGM("FAILURE: Watchdog did not trigger board reset.");
     } break;
-
-    #if ENABLED(SDSUPPORT)
-
-      case 101: { // D101 Test SD Write
-        card.openFileWrite("test.gco");
-        if (!card.isFileOpen()) {
-          SERIAL_ECHOLNPGM("Failed to open test.gco to write.");
-          return;
-        }
-        __attribute__((aligned(sizeof(size_t)))) uint8_t buf[512];
-
-        uint16_t c;
-        for (c = 0; c < COUNT(buf); c++)
-          buf[c] = 'A' + (c % ('Z' - 'A'));
-
-        c = 1024 * 4;
-        while (c--) {
-          hal.watchdog_refresh();
-          card.write(buf, COUNT(buf));
-        }
-        SERIAL_ECHOLNPGM(" done");
-        card.closefile();
-      } break;
-
-      case 102: { // D102 Test SD Read
-        char testfile[] = "test.gco";
-        card.openFileRead(testfile);
-        if (!card.isFileOpen()) {
-          SERIAL_ECHOLNPGM("Failed to open test.gco to read.");
-          return;
-        }
-        __attribute__((aligned(sizeof(size_t)))) uint8_t buf[512];
-        uint16_t c = 1024 * 4;
-        while (c--) {
-          hal.watchdog_refresh();
-          card.read(buf, COUNT(buf));
-          bool error = false;
-          for (uint16_t i = 0; i < COUNT(buf); i++) {
-            if (buf[i] != ('A' + (i % ('Z' - 'A')))) {
-              error = true;
-              break;
-            }
-          }
-          if (error) {
-            SERIAL_ECHOLNPGM(" Read error!");
-            break;
-          }
-        }
-        SERIAL_ECHOLNPGM(" done");
-        card.closefile();
-      } break;
-
-    #endif // SDSUPPORT
 
     #if ENABLED(POSTMORTEM_DEBUGGING)
 

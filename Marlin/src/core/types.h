@@ -68,19 +68,9 @@ struct IF<true, L, R> { typedef L type; };
 #define SECONDARY_AXIS_GANG(V...) GANG_N(SECONDARY_AXES, V)
 #define SECONDARY_AXIS_CODE(V...) CODE_N(SECONDARY_AXES, V)
 
-#if HAS_ROTATIONAL_AXES
-  #define ROTATIONAL_AXIS_GANG(V...) GANG_N(ROTATIONAL_AXES, V)
-#endif
-
-#if HAS_EXTRUDERS
-  #define LIST_ITEM_E(N) , N
-  #define CODE_ITEM_E(N) ; N
-  #define GANG_ITEM_E(N) N
-#else
-  #define LIST_ITEM_E(N)
-  #define CODE_ITEM_E(N)
-  #define GANG_ITEM_E(N)
-#endif
+#define LIST_ITEM_E(N)
+#define CODE_ITEM_E(N)
+#define GANG_ITEM_E(N)
 
 #define AXIS_COLLISION(L) (AXIS4_NAME == L || AXIS5_NAME == L || AXIS6_NAME == L || AXIS7_NAME == L || AXIS8_NAME == L || AXIS9_NAME == L)
 
@@ -154,20 +144,10 @@ enum AxisEnum : uint8_t {
   REPEAT(EXTRUDERS, _EN_ITEM)
   #undef _EN_ITEM
 
-  // Core also keeps toolhead directions
-  #if ANY(IS_CORE, MARKFORGED_XY, MARKFORGED_YX)
-    , X_HEAD, Y_HEAD, Z_HEAD
-  #endif
-
   // Distinct axes, including all E and Core
   , NUM_AXIS_ENUMS
 
-  // Most of the time we refer only to the single E_AXIS
-  #if HAS_EXTRUDERS
-    , E_AXIS = E0_AXIS
-  #endif
-
-  // A, B, and C are for DELTA, SCARA, etc.
+  // A, B, and C are for DELA, SCAR, etc.
   , A_AXIS = X_AXIS
   #if HAS_Y_AXIS
     , B_AXIS = Y_AXIS
@@ -361,7 +341,7 @@ struct XYval {
   FI XYval<float>    asFloat()                    const { return { static_cast<float>(x), static_cast<float>(y) }; }
   FI XYval<float> reciprocal()                    const { return {  _RECIP(x),  _RECIP(y) }; }
 
-  // Marlin workspace shifting is done with G92 and M206
+  // Marlin workspace shifting is done with G92
   FI XYval<float>  asLogical()                    const { XYval<float> o = asFloat(); toLogical(o); return o; }
   FI XYval<float>   asNative()                    const { XYval<float> o = asFloat(); toNative(o);  return o; }
 
@@ -520,7 +500,7 @@ struct XYZval {
   FI XYZval<float>   asFloat()                   const { return NUM_AXIS_ARRAY(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z), static_cast<float>(i), static_cast<float>(j), static_cast<float>(k), static_cast<float>(u), static_cast<float>(v), static_cast<float>(w)); }
   FI XYZval<float> reciprocal()                  const { return NUM_AXIS_ARRAY(_RECIP(x),  _RECIP(y),  _RECIP(z),  _RECIP(i),  _RECIP(j),  _RECIP(k),  _RECIP(u),  _RECIP(v),  _RECIP(w)); }
 
-  // Marlin workspace shifting is done with G92 and M206
+  // Marlin workspace shifting is done with G92
   FI XYZval<float> asLogical()                   const { XYZval<float> o = asFloat(); toLogical(o); return o; }
   FI XYZval<float>  asNative()                   const { XYZval<float> o = asFloat(); toNative(o);  return o; }
 
@@ -673,7 +653,7 @@ struct XYZEval {
   FI XYZEval<float>   asFloat()  const { return LOGICAL_AXIS_ARRAY(static_cast<float>(e), static_cast<float>(x), static_cast<float>(y), static_cast<float>(z), static_cast<float>(i), static_cast<float>(j), static_cast<float>(k), static_cast<float>(u), static_cast<float>(v), static_cast<float>(w)); }
   FI XYZEval<float> reciprocal() const { return LOGICAL_AXIS_ARRAY(_RECIP(e),  _RECIP(x),  _RECIP(y),  _RECIP(z),  _RECIP(i),  _RECIP(j),  _RECIP(k),  _RECIP(u),  _RECIP(v),  _RECIP(w)); }
 
-  // Marlin workspace shifting is done with G92 and M206
+  // Marlin workspace shifting is done with G92
   FI XYZEval<float> asLogical()  const { XYZEval<float> o = asFloat(); toLogical(o); return o; }
   FI XYZEval<float>  asNative()  const { XYZEval<float> o = asFloat(); toNative(o);  return o; }
 

@@ -346,12 +346,6 @@ bool I2CPositionEncoder::test_axis() {
 
   planner.synchronize();
 
-  #if HAS_EXTRUDERS
-    startCoord.e = planner.get_axis_position_mm(E_AXIS);
-    planner.buffer_line(startCoord, fr_mm_s, 0);
-    planner.synchronize();
-  #endif
-
   // if the module isn't currently trusted, wait until it is (or until it should be if things are working)
   if (!trusted) {
     int32_t startWaitingTime = millis();
@@ -360,7 +354,6 @@ bool I2CPositionEncoder::test_axis() {
   }
 
   if (trusted) { // if trusted, commence test
-    TERN_(HAS_EXTRUDERS, endCoord.e = planner.get_axis_position_mm(E_AXIS));
     planner.buffer_line(endCoord, fr_mm_s, 0);
     planner.synchronize();
   }

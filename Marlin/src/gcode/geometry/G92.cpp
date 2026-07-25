@@ -41,15 +41,9 @@
  * Using Workspace Offsets (default Marlin behavior):
  *   G92   : Modify Workspace Offsets so the reported position shows the given X [Y [Z [A [B [C [U [V [W ]]]]]]]] [E].
  *   G92.1 : Zero XYZ Workspace Offsets (so the reported position = the native position).
- *
- * With POWER_LOSS_RECOVERY:
- *   G92.9 : Set NATIVE Current Position to the given X [Y [Z [A [B [C [U [V [W ]]]]]]]] [E].
  */
 void GcodeSuite::G92() {
 
-  #if HAS_EXTRUDERS
-    bool sync_E = false;
-  #endif
   bool sync_XYZE = false;
 
   #if USE_GCODE_SUBCODES
@@ -61,48 +55,16 @@ void GcodeSuite::G92() {
   switch (subcode_G92) {
     default: return;                                                  // Ignore unknown G92.x
 
-    #if ENABLED(CNC_COORDINATE_SYSTEMS) && !IS_SCARA
-      case 1:                                                         // G92.1 - Zero the Workspace Offset
-        LOOP_NUM_AXES(i) if (position_shift[i]) {
-          position_shift[i] = 0;
-          update_workspace_offset((AxisEnum)i);
-        }
-        break;
-    #endif
-
-    #if ENABLED(POWER_LOSS_RECOVERY)
-      case 9:                                                         // G92.9 - Set Current Position directly (like Marlin 1.0)
-        LOOP_LOGICAL_AXES(i) {
-          if (parser.seenval(AXIS_CHAR(i))) {
-            if (TERN1(HAS_EXTRUDERS, i != E_AXIS))
-              sync_XYZE = true;
-            else {
-              TERN_(HAS_EXTRUDERS, sync_E = true);
-            }
-            current_position[i] = parser.value_axis_units((AxisEnum)i);
-          }
-        }
-        break;
-    #endif
-
     case 0:
       LOOP_LOGICAL_AXES(i) {
         if (parser.seenval(AXIS_CHAR(i))) {
           const float l = parser.value_axis_units((AxisEnum)i),       // Given axis coordinate value, converted to millimeters
-                      v = TERN0(HAS_EXTRUDERS, i == E_AXIS) ? l : LOGICAL_TO_NATIVE(l, i),  // Axis position in NATIVE space (applying the existing offset)
+                      v = 0 ? l : LOGICAL_TO_NATIVE(l, i),  // Axis position in NATIVE space (applying the existing offset)
                       d = v - current_position[i];                    // How much is the current axis position altered by?
           if (!NEAR_ZERO(d)) {
-            #if HAS_POSITION_SHIFT && NONE(IS_SCARA, POLARGRAPH)      // When using workspaces...
-              if (TERN1(HAS_EXTRUDERS, i != E_AXIS)) {
-                position_shift[i] += d;                               // ...most axes offset the workspace...
-                update_workspace_offset((AxisEnum)i);
-              }
-              else {
-                #if HAS_EXTRUDERS
-                  sync_E = true;
-                  current_position.e = v;                             // ...but E is set directly
-                #endif
-              }
+            #if HAS_POSITION_SHIFT     // When using workspaces...
+              position_shift[i] += d;                               // ...most axes offset the workspace...
+              update_workspace_offset((AxisEnum)i);
             #else                                                     // Without workspaces...
               if (TERN1(HAS_EXTRUDERS, i != E_AXIS))
                 sync_XYZE = true;
@@ -117,16 +79,7 @@ void GcodeSuite::G92() {
       break;
   }
 
-  #if ENABLED(CNC_COORDINATE_SYSTEMS)
-    // Apply Workspace Offset to the active coordinate system
-    if (WITHIN(active_coordinate_system, 0, MAX_COORDINATE_SYSTEMS - 1))
-      coordinate_system[active_coordinate_system] = position_shift;
-  #endif
-
   if (sync_XYZE) sync_plan_position();
-  #if HAS_EXTRUDERS
-    else if (sync_E) sync_plan_position_e();
-  #endif
 
   IF_DISABLED(DIRECT_STEPPING, report_current_position());
 }

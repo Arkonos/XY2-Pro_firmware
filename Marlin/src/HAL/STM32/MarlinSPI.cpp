@@ -23,7 +23,7 @@
 #include "../platforms.h"
 #include "MarlinSPI.h"
 
-#if defined(HAL_STM32) && !defined(STM32H7xx) && !TRONXY_UI
+#if defined(HAL_STM32) && !defined(STM32H7xx)
 
 static void spi_init(spi_t *obj, uint32_t speed, spi_mode_e mode, uint8_t msb, uint32_t dataSize) {
   spi_init(obj, speed, mode, msb);

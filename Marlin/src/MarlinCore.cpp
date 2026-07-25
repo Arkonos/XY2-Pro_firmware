@@ -31,7 +31,6 @@
 #include "MarlinCore.h"
 
 #include "HAL/shared/Delay.h"
-#include "HAL/shared/esp_wifi.h"
 #include "HAL/shared/cpu_exception/exception_hook.h"
 
 #ifdef ARDUINO
@@ -42,7 +41,6 @@
 #include "module/endstops.h"
 #include "module/motion.h"
 #include "module/planner.h"
-#include "module/printcounter.h" // PrintCounter or Stopwatch
 #include "module/settings.h"
 #include "module/stepper.h"
 #include "module/temperature.h"
@@ -51,14 +49,7 @@
 #include "gcode/parser.h"
 #include "gcode/queue.h"
 
-#include "feature/pause.h"
-#include "sd/cardreader.h"
-
-#if TRONXY_UI
-#include "muyu.h"
-#else
 #include "lcd/marlinui.h"
-#endif
 #if HAS_TOUCH_BUTTONS
   #include "lcd/touch/touch_buttons.h"
 #endif
@@ -121,10 +112,6 @@
   #include "feature/leds/leds.h"
 #endif
 
-#if ENABLED(BLTOUCH)
-  #include "feature/bltouch.h"
-#endif
-
 #if ENABLED(BD_SENSOR)
   #include "feature/bedlevel/bdl/bdl.h"
 #endif
@@ -149,7 +136,7 @@
   #include "feature/encoder_i2c.h"
 #endif
 
-#if (HAS_TRINAMIC_CONFIG || HAS_TMC_SPI) && DISABLED(PSU_DEFAULT_OFF)
+#if (HAS_TRINAMIC_CONFIG || HAS_TMC_SPI)
   #include "feature/tmc_util.h"
 #endif
 
@@ -157,21 +144,9 @@
   #include "feature/spindle_laser.h"
 #endif
 
-#if ENABLED(SDSUPPORT)
-  CardReader card;
-#endif
-
 #if ENABLED(G38_PROBE_TARGET)
   uint8_t G38_move; // = 0
   bool G38_did_trigger; // = false
-#endif
-
-#if ENABLED(DELTA)
-  #include "module/delta.h"
-#elif ENABLED(POLARGRAPH)
-  #include "module/polargraph.h"
-#elif IS_SCARA
-  #include "module/scara.h"
 #endif
 
 #if HAS_LEVELING
@@ -182,39 +157,13 @@
   #include "feature/repeat.h"
 #endif
 
-#if ENABLED(POWER_LOSS_RECOVERY)
-  #include "feature/powerloss.h"
-#endif
-
-#if ENABLED(CANCEL_OBJECTS)
-  #include "feature/cancel_object.h"
-#endif
-
-#if HAS_FILAMENT_SENSOR
-  #include "feature/runout.h"
-#endif
-
-#if EITHER(PROBE_TARE, HAS_Z_SERVO_PROBE)
-  #include "module/probe.h"
-#endif
-
-#if ENABLED(HOTEND_IDLE_TIMEOUT)
-  #include "feature/hotend_idle.h"
-#endif
-
 #if ENABLED(TEMP_STAT_LEDS)
   #include "feature/leds/tempstat.h"
-#endif
-
-#if ENABLED(CASE_LIGHT_ENABLE)
-  #include "feature/caselight.h"
 #endif
 
 #if HAS_FANMUX
   #include "feature/fanmux.h"
 #endif
-
-#include "module/tool_change.h"
 
 #if HAS_FANCHECK
   #include "feature/fancheck.h"
@@ -222,18 +171,6 @@
 
 #if ENABLED(USE_CONTROLLER_FAN)
   #include "feature/controllerfan.h"
-#endif
-
-#if HAS_PRUSA_MMU1
-  #include "feature/mmu/mmu.h"
-#endif
-
-#if HAS_PRUSA_MMU2
-  #include "feature/mmu/mmu2.h"
-#endif
-
-#if ENABLED(PASSWORD_FEATURE)
-  #include "feature/password/password.h"
 #endif
 
 #if ENABLED(DGUS_LCD_UI_MKS)
@@ -274,15 +211,10 @@ bool wait_for_heatup = true;
     if (ms) ms += millis(); // expire time
     while (wait_for_user && 
     !(ms && ELAPSED(millis(), ms))
-    #if TRONXY_UI
-    && !globalStop
-    #endif
     )
       idle(TERN_(ADVANCED_PAUSE_FEATURE, no_sleep));
     wait_for_user = false;
-    #if !TRONXY_UI
     while (ui.button_pressed()) safe_delay(50);
-    #endif
   }
 
 #endif
@@ -333,87 +265,8 @@ bool pin_is_protected(const pin_t pin) {
 #pragma GCC diagnostic pop
 
 bool printer_busy() {
-  return planner.movesplanned() || printingIsActive();
+  return planner.movesplanned();
 }
-
-/**
- * A Print Job exists when the timer is running or SD is printing
- */
-bool printJobOngoing() { return print_job_timer.isRunning() || IS_SD_PRINTING(); }
-
-/**
- * Printing is active when a job is underway but not paused
- */
-bool printingIsActive() { return !did_pause_print && printJobOngoing(); }
-
-/**
- * Printing is paused according to SD or host indicators
- */
-bool printingIsPaused() {
-  return did_pause_print || print_job_timer.isPaused() || IS_SD_PAUSED();
-}
-
-void startOrResumeJob() {
-  if (!printingIsPaused()) {
-    TERN_(GCODE_REPEAT_MARKERS, repeat.reset());
-    TERN_(CANCEL_OBJECTS, cancelable.reset());
-    TERN_(LCD_SHOW_E_TOTAL, e_move_accumulator = 0);
-    #if BOTH(LCD_SET_PROGRESS_MANUALLY, USE_M73_REMAINING_TIME)
-      ui.reset_remaining_time();
-    #endif
-  }
-  print_job_timer.start();
-}
-
-#if ENABLED(SDSUPPORT)
-
-  inline void abortSDPrinting() {
-    IF_DISABLED(NO_SD_AUTOSTART, card.autofile_cancel());
-    card.abortFilePrintNow(TERN_(SD_RESORT, true));
-
-    queue.clear();
-    quickstop_stepper();
-
-    print_job_timer.abort();
-
-    IF_DISABLED(SD_ABORT_NO_COOLDOWN, thermalManager.disable_all_heaters());
-
-    TERN(HAS_CUTTER, cutter.kill(), thermalManager.zero_fan_speeds()); // Full cutter shutdown including ISR control
-
-    wait_for_heatup = false;
-
-    TERN_(POWER_LOSS_RECOVERY, recovery.purge());
-
-    #ifdef EVENT_GCODE_SD_ABORT
-      #if TRONXY_UI
-      CONST_CMD(EVENT_GCODE_SD_ABORT);
-      CONST_CMD("T0");
-      CONST_CMD("G92 E0");
-      if(my_print_status == PRINT_RUNNING_SERIAL)SERIAL_ECHO("M8004-2ok\n");
-      CONST_CMD(SD_FINISHED_RELEASECOMMAND);
-      while(planner.has_blocks_queued())idle();
-      my_print_status = PRINT_IDLE;
-      #else
-      queue.inject(F(EVENT_GCODE_SD_ABORT));
-      #endif
-    #endif
-
-    TERN_(PASSWORD_AFTER_SD_PRINT_ABORT, password.lock_machine());
-  }
-
-  inline void finishSDPrinting() {
-    if (queue.enqueue_one(F("M1001"))) {  // Keep trying until it gets queued
-      #if TRONXY_UI
-        my_print_status = PRINT_IDLE;
-        saveSettingInPrinting();
-      #endif
-      marlin_state = MF_RUNNING;          // Signal to stop trying
-      TERN_(PASSWORD_AFTER_SD_PRINT_END, password.lock_machine());
-      TERN_(DGUS_LCD_UI_MKS, ScreenHandler.SDPrintingFinished());
-    }
-  }
-
-#endif // SDSUPPORT
 
 /**
  * Minimal management of Marlin's core activities:
@@ -425,7 +278,6 @@ void startOrResumeJob() {
  *  - Check for HOME button held down
  *  - Check for CUSTOM USER button held down
  *  - Check if cooling fan needs to be switched on
- *  - Check if an idle but hot extruder needs filament extruded (EXTRUDER_RUNOUT_PREVENT)
  *  - Pulse FET_SAFETY_PIN if it exists
  */
 inline void manage_inactivity(const bool no_stepper_sleep=false) {
@@ -436,9 +288,9 @@ inline void manage_inactivity(const bool no_stepper_sleep=false) {
 
   // Prevent steppers timing-out
   const bool do_reset_timeout = no_stepper_sleep
-                               || TERN0(PAUSE_PARK_NO_STEPPER_TIMEOUT, did_pause_print);
+                               || TERN0(PAUSE_PARK_NO_STEPPER_TIMEOUT, 0);
 
-  // Reset both the M18/M84 activity timeout and the M85 max 'kill' timeout
+  // Reset both the M18/M84 activity timeout
   if (do_reset_timeout) gcode.reset_stepper_timeout(ms);
 
   if (gcode.stepper_max_timed_out(ms)) {
@@ -449,37 +301,7 @@ inline void manage_inactivity(const bool no_stepper_sleep=false) {
   }
 
   const bool has_blocks = planner.has_blocks_queued();  // Any moves in the planner?
-  if (has_blocks) gcode.reset_stepper_timeout(ms);      // Reset timeout for M18/M84, M85 max 'kill', and laser.
-
-  // M18 / M84 : Handle steppers inactive time timeout
-  #if HAS_DISABLE_INACTIVE_AXIS
-    if (gcode.stepper_inactive_time) {
-
-      static bool already_shutdown_steppers; // = false
-
-      if (!has_blocks && !do_reset_timeout && gcode.stepper_inactive_timeout()) {
-        if (!already_shutdown_steppers) {
-          already_shutdown_steppers = true;
-
-          // Individual axes will be disabled if configured
-          TERN_(DISABLE_INACTIVE_X, stepper.disable_axis(X_AXIS));
-          TERN_(DISABLE_INACTIVE_Y, stepper.disable_axis(Y_AXIS));
-          TERN_(DISABLE_INACTIVE_Z, stepper.disable_axis(Z_AXIS));
-          TERN_(DISABLE_INACTIVE_I, stepper.disable_axis(I_AXIS));
-          TERN_(DISABLE_INACTIVE_J, stepper.disable_axis(J_AXIS));
-          TERN_(DISABLE_INACTIVE_K, stepper.disable_axis(K_AXIS));
-          TERN_(DISABLE_INACTIVE_U, stepper.disable_axis(U_AXIS));
-          TERN_(DISABLE_INACTIVE_V, stepper.disable_axis(V_AXIS));
-          TERN_(DISABLE_INACTIVE_W, stepper.disable_axis(W_AXIS));
-          TERN_(DISABLE_INACTIVE_E, stepper.disable_e_steppers());
-
-          TERN_(AUTO_BED_LEVELING_UBL, bedlevel.steppers_were_disabled());
-        }
-      }
-      else
-        already_shutdown_steppers = false;
-    }
-  #endif
+  if (has_blocks) gcode.reset_stepper_timeout(ms);      // Reset timeout for M18/M84
 
   #if ENABLED(PHOTO_GCODE) && PIN_EXISTS(CHDK)
     // Check if CHDK should be set to LOW (after M240 set it HIGH)
@@ -683,10 +505,6 @@ inline void manage_inactivity(const bool no_stepper_sleep=false) {
 
   TERN_(USE_CONTROLLER_FAN, controllerFan.update()); // Check if fan should be turned on to cool stepper drivers down
 
-  TERN_(AUTO_POWER_CONTROL, powerManager.check(!ui.on_status_screen() || printJobOngoing() || printingIsPaused()));
-
-  TERN_(HOTEND_IDLE_TIMEOUT, hotend_idle.check());
-
   #if ENABLED(EXTRUDER_RUNOUT_PREVENT)
     if (thermalManager.degHotend(active_extruder) > (EXTRUDER_RUNOUT_MINTEMP)
       && ELAPSED(ms, gcode.previous_move_ms + SEC_TO_MS(EXTRUDER_RUNOUT_SECONDS))
@@ -743,17 +561,6 @@ inline void manage_inactivity(const bool no_stepper_sleep=false) {
     }
   #endif // EXTRUDER_RUNOUT_PREVENT
 
-  #if ENABLED(DUAL_X_CARRIAGE)
-    // handle delayed move timeout
-    if (delayed_move_time && ELAPSED(ms, delayed_move_time) && IsRunning()) {
-      // travel moves have been received so enact them
-      delayed_move_time = 0xFFFFFFFFUL; // force moves to be done
-      destination = current_position;
-      prepare_line_to_destination();
-      planner.synchronize();
-    }
-  #endif
-
   TERN_(TEMP_STAT_LEDS, handle_status_leds());
 
   TERN_(MONITOR_DRIVER_STATUS, monitor_tmc_drivers());
@@ -783,7 +590,6 @@ inline void manage_inactivity(const bool no_stepper_sleep=false) {
  *  - Max7219 heartbeat, animation, etc.
  *
  *  Only after setup() is complete:
- *  - Handle filament runout sensors
  *  - Run HAL idle tasks
  *  - Handle Power-Loss Recovery
  *  - Run StallGuard endstop checks
@@ -823,53 +629,23 @@ void idle(bool no_stepper_sleep/*=false*/) {
   // Return if setup() isn't completed
   if (marlin_state == MF_INITIALIZING) goto IDLE_DONE;
 
-  // TODO: Still causing errors
-  (void)check_tool_sensor_stats(active_extruder, true);
-
-  // Handle filament runout sensors
-  #if HAS_FILAMENT_SENSOR
-    if (TERN1(HAS_PRUSA_MMU2, !mmu2.enabled()))
-      runout.run();
-  #endif
-
   // Run HAL idle tasks
   hal.idletask();
-
-  // Check network connection
-  TERN_(HAS_ETHERNET, ethernet.check());
-
-  // Handle Power-Loss Recovery
-  #if ENABLED(POWER_LOSS_RECOVERY) && PIN_EXISTS(POWER_LOSS) && !TRONXY_UI
-    if (IS_SD_PRINTING()) recovery.outage();
-  #endif
 
   // Run StallGuard endstop checks
   #if ENABLED(SPI_ENDSTOPS)
     if (endstops.tmc_spi_homing.any && TERN1(IMPROVE_HOMING_RELIABILITY, ELAPSED(millis(), sg_guard_period)))
       LOOP_L_N(i, 4) if (endstops.tmc_spi_homing_check()) break; // Read SGT 4 times per idle loop
   #endif
-
-  // Handle SD Card insert / remove
-  TERN_(SDSUPPORT, card.manage_media());
-
-  // Handle USB Flash Drive insert / remove
-  TERN_(USB_FLASH_DRIVE_SUPPORT, card.diskIODriver()->idle());//YSZ-COMMENT:这里不停的执行USB的idle(),里面执行USB_Process可以检测到USB插入与拔出
-
   // Announce Host Keepalive state (if any)
   TERN_(HOST_KEEPALIVE_FEATURE, gcode.host_keepalive());
-
-  // Update the Print Job Timer state
-  TERN_(PRINTCOUNTER, print_job_timer.tick());
 
   // Update the Beeper queue
   TERN_(HAS_BEEPER, buzzer.tick());
 
   // Handle UI input / draw events
-  #if TRONXY_UI
-  tronxyUpdate();
-  #else
   TERN(DWIN_CREALITY_LCD, DWIN_Update(), ui.update());
-  #endif
+
 
   // Run i2c Position Encoders
   #if ENABLED(I2C_POSITION_ENCODERS)
@@ -918,17 +694,7 @@ void idle(bool no_stepper_sleep/*=false*/) {
  * After this the machine will need to be reset.
  */
 void kill(FSTR_P const lcd_error/*=nullptr*/, FSTR_P const lcd_component/*=nullptr*/, const bool steppers_off/*=false*/) {
-  #if TRONXY_UI
-    if(my_print_status == PRINT_ERROR) {
-      thermalManager.disable_all_heaters();
-      return;//防止重复报错
-    }
-    hal.watchdog_refresh();
-    screenKillError(lcd_error,lcd_component);
-  #endif
   thermalManager.disable_all_heaters();
-
-  TERN_(HAS_CUTTER, cutter.kill()); // Full cutter shutdown including ISR control
 
   // Echo the LCD message to serial for extra context
   if (lcd_error) { SERIAL_ECHO_START(); SERIAL_ECHOLNF(lcd_error); }
@@ -965,8 +731,6 @@ void minkill(const bool steppers_off/*=false*/) {
   // Reiterate heaters off
   thermalManager.disable_all_heaters();
 
-  TERN_(HAS_CUTTER, cutter.kill());  // Reiterate cutter shutdown
-
   // Power off all steppers (for M112) or just the E steppers
   steppers_off ? stepper.disable_all_steppers() : stepper.disable_e_steppers();
 
@@ -988,19 +752,15 @@ void minkill(const bool steppers_off/*=false*/) {
     hal.reboot();
 
   #else
+    sei();
+    if(Buzzer::buffer.isEmpty())buzzer.tone(200,800);
+    hal.watchdog_refresh();
+    while(buzzer.buffer.count())buzzer.tick();//等待蜂鸣器结束
+    while(buzzer.state.endtime)buzzer.tick();
+    delay(500);
+    NVIC_SystemReset();
+    for (;;) hal.watchdog_refresh();  // Wait for RESET button or power-cycle
 
-    #if TRONXY_UI
-      sei();
-    #else
-      sei();
-      if(Buzzer::buffer.isEmpty())buzzer.tone(200,800);
-      hal.watchdog_refresh();
-      while(buzzer.buffer.count())buzzer.tick();//等待蜂鸣器结束
-      while(buzzer.state.endtime)buzzer.tick();
-      delay(500);
-      NVIC_SystemReset();
-      for (;;) hal.watchdog_refresh();  // Wait for RESET button or power-cycle
-    #endif
 
   #endif
 }
@@ -1012,17 +772,13 @@ void minkill(const bool steppers_off/*=false*/) {
 void stop() {
   thermalManager.disable_all_heaters(); // 'unpause' taken care of in here
 
-  print_job_timer.stop();
-
   #if EITHER(PROBING_FANS_OFF, ADVANCED_PAUSE_FANS_PAUSE)
     thermalManager.set_fans_paused(false); // Un-pause fans for safety
   #endif
 
   if (!IsStopped()) {
     SERIAL_ERROR_MSG(STR_ERR_STOPPED);
-    #if !TRONXY_UI
     LCD_MESSAGE(MSG_STOPPED);
-    #endif
     safe_delay(350);       // allow enough time for messages to get out before stopping
     marlin_state = MF_STOPPED;
   }
@@ -1111,158 +867,6 @@ void controllerFanChange(uint8_t s)
   #endif
 }
 
-#if TRONXY_UI
-bool controllerFanState(void)
-{
-  #if ENABLED(USE_CONTROLLER_FAN)
-  return ControllerFan::speed > 0;
-  #else
-  return false;
-  #endif
-}
-uint8_t autoLevelEnd(void)
-{
-  #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-	current_position.z += 10;
-	line_to_current_position();
-	hal.watchdog_refresh();
-	int index = INDEX_GRID_SPACING;
-	persistentStore.write_data(index,(const uint8_t*)&bedlevel.grid_spacing,sizeof(bedlevel.grid_spacing));
-	persistentStore.write_data(index,(const uint8_t*)&bedlevel.grid_start,sizeof(bedlevel.grid_start));
-	persistentStore.write_data(index,(const uint8_t*)&bedlevel.z_values,sizeof(bedlevel.z_values));
-	const bool ubl_active = planner.leveling_active;
-	persistentStore.write_data(index,(const uint8_t*)&ubl_active,sizeof(bool));
-	queue.enqueue_one(F("G28 XY"));
-  #endif
-  return 1;
-}
-
-bool laserIsOn(){return(TERN(LASER_SERIAL,cutter.power > 0,false));}
-
-void filamentSensorReset(void)
-{
-  #if ENABLED(FILAMENT_RUNOUT_SENSOR)
-  runout.reset();
-  #endif
-}
-
-const char* firmware_name = TRONXY_MACHINE_NAME "-" NAME_SIGN_USB NAME_SIGN_EXTRUDER;
-void tronxy_config_init(void)
-{
-  #if ENABLED(USE_CONTROLLER_FAN)
-  enabled_controller_fan = 1;
-  #else
-  enabled_controller_fan = 0;
-  #endif
-  #if LASER_SERIAL
-  enabled_laser_serial = 1;
-  #endif
-  #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-  enabled_auto_bed_leveling = 1;
-  auto_leveling_x_points = GRID_MAX_POINTS_X;
-  auto_leveling_y_points = GRID_MAX_POINTS_Y;
-  #else
-  enabled_auto_bed_leveling = 0;
-  #endif
-  #if USE_Z_LIMIT_PROBE_0 //Z限位+探头机型
-    #if ENABLED(Z_MULTI_ENDSTOPS)
-      enabled_dual_z_stop = 1;
-      #if Z_HOME_DIR > 0
-        enabled_z_max_home = 1;
-        pin_left_z_endstop = Z2_MAX_PIN;
-        pin_right_z_endstop = Z_MAX_PIN;
-      #else
-        enabled_z_max_home = 0;
-        pin_left_z_endstop = Z2_MIN_PIN;
-        pin_right_z_endstop = Z_MIN_PIN;
-      #endif
-    #else
-      enabled_dual_z_stop = 2;//安装了探头并且不用它来作限位,则表示用限位开关限位,用探头找0点
-      #if Z_HOME_DIR > 0
-      enabled_z_max_home = 1;
-      pin_right_z_endstop = Z_MAX_PIN;
-      #else
-      enabled_z_max_home = 0;
-      pin_right_z_endstop = Z_MIN_PIN;
-      #endif
-    #endif
-  #else
-    enabled_dual_z_stop = 0;
-    #if Z_HOME_DIR > 0
-    enabled_z_max_home = 1;
-    pin_right_z_endstop = Z_MAX_PIN;
-    #else
-    enabled_z_max_home = 0;
-    pin_right_z_endstop = Z_MIN_PIN;
-    #endif
-  #endif
-  pin_probe = Z_MIN_PROBE_PIN;
-  #if ENABLED(DUAL_X_CARRIAGE)
-    enabled_dual_x = 1;
-  #else
-    enabled_dual_x = 0;
-  #endif
-  #if ENABLED(FILAMENT_RUNOUT_SENSOR)
-    enabled_filament_sensor = 1;
-    filament_sensor_state = FIL_RUNOUT_STATE;
-    pin_e0_filament = FIL_RUNOUT_PIN;
-    #if EXTRUDERS > 1
-    pin_e1_filament = FIL_RUNOUT2_PIN;
-    #endif
-    #if EXTRUDERS > 2
-    pin_e2_filament = FIL_RUNOUT3_PIN;
-    #endif
-  #else
-    enabled_filament_sensor = 0;
-  #endif
-  extruder_num = EXTRUDERS;
-  hotend_num = HOTENDS;
-  throat_fan = THROAT_FAN;
-  #if HAS_FAN
-  enabled_fan = 1;
-  #endif
-  #if TRONXY_PROJ == PROJ_D01
-  enabled_light = 1;
-  #endif
-
-  pin_x_stop = X_MIN_PIN;
-  pin_x2_stop = X_MAX_PIN;
-  pin_y_stop = Y_STOP_PIN;
-
-  #if TAOLI_SERIAL
-  enabled_taoli = 1;
-  pin_air = AIR_PIN;
-  #endif
-  #if Z_BED_MOVE
-  dir_y_axis = 1;
-  dir_z_axis = 1;
-  #else
-  dir_y_axis = 0;
-  dir_z_axis = 0;
-  #endif
-  enabled_need_heat_head = NEED_HEAT_HEAD;
-  enabled_need_heat_bed = NEED_HEAT_BED;
-  
-  pos_x_min = X_MIN_POS;
-  pos_x_max = X_MAX_POS;
-  pos_x2_min = X_MIN_POS + HOTEND_TO_HOTEND;
-  pos_x2_max = X_MAX_POS + X2_TO_BED;
-  pos_y_min = Y_MIN_POS;
-  pos_y_max = Y_MAX_POS;
-  pos_z_min = Z_MIN_POS;
-  pos_z_max = Z_MAX_POS;
-  pause_z_raise = NOZZLE_PARK_Z_RAISE_MIN;
-  #if TRONXY_PROJ == PROJ_X5SA400_PRO \
-  || TRONXY_PROJ == PROJ_X5SA400_2E
-  auto_leveling_max_err = 1;
-  #else
-  auto_leveling_max_err = 0.6;
-  #endif
-  enabled_only_home_xy = TRONXY_HOME_XY_ONLY;
-  enabled_usb = USBHOST_HS_EN;
-  enabled_wifi = WIFI_INTERFACE;
-}
-#endif
 /**
  * Marlin Firmware entry-point. Abandon Hope All Ye Who Enter Here.
  * Setup before the program loop:
@@ -1271,21 +875,17 @@ void tronxy_config_init(void)
  *  - Put TMC drivers into Low Power Standby mode
  *  - Init the serial ports (so setup can be debugged)
  *  - Set up the kill and suicide pins
- *  - Prepare (disable) board JTAG and Debug ports
- *  - Init serial for a connected MKS TFT with WiFi
  *  - Install Marlin custom Exception Handlers, if set.
  *  - Init Marlin's HAL interfaces (for SPI, i2c, etc.)
  *  - Init some optional hardware and features:
  *    • MAX Thermocouple pins
  *    • Duet Smart Effector
- *    • Filament Runout Sensor
  *    • TMC220x Stepper Drivers (Serial)
  *    • PSU control
  *    • Power-loss Recovery
  *    • Stepper Driver Reset: DISABLE
  *    • TMC Stepper Drivers (SPI)
  *    • Run hal.init_board() for additional pins setup
- *    • ESP WiFi
  *  - Get the Reset Reason and report it
  *  - Print startup messages and diagnostics
  *  - Calibrate the HAL DELAY for precise timing
@@ -1310,7 +910,6 @@ void tronxy_config_init(void)
  *    • Servos
  *    • Servo-based Probe
  *    • Photograph Pin
- *    • Laser/Spindle tool Power / PWM
  *    • Coolant Control
  *    • Bed Probe
  *    • Stepper Driver Reset: ENABLE
@@ -1321,26 +920,17 @@ void tronxy_config_init(void)
  *    • Custom User Buttons
  *    • Red/Blue Status LEDs
  *    • Case Light
- *    • Prusa MMU filament changer
  *    • Fan Multiplexer
  *    • Mixing Extruder
  *    • BLTouch Probe
  *    • I2C Position Encoders
  *    • Custom I2C Bus handlers
- *    • Enhanced tools or extruders:
- *      • Switching Extruder
- *      • Switching Nozzle
- *      • Parking Extruder
- *      • Magnetic Parking Extruder
- *      • Switching Toolhead
- *      • Electromagnetic Switching Toolhead
  *    • Watchdog Timer - Also Kind of Important!
  *    • Closed Loop Controller
  *  - Run Startup Commands, if defined
  *  - Tell host to close Host Prompts
  *  - Test Trinamic driver connections
- *  - Init Prusa MMU2 filament changer
- *  - Init and test BL24Cxx EEPROM
+  *  - Init and test BL24Cxx EEPROM
  *  - Init Creality DWIN encoder, show faux progress bar
  *  - Reset Status Message / Show Service Messages
  *  - Init MAX7219 LED Matrix
@@ -1380,11 +970,6 @@ void setup() {
   MYSERIAL1.begin(BAUDRATE);
   millis_t serial_connect_timeout = millis() + 1000UL;
   while (!MYSERIAL1.connected() && PENDING(millis(), serial_connect_timeout)) { /*nada*/ }
-  #if TRONXY_UI
-  RCC_ClocksTypeDef rcc_clk;
-  RCC_GetClocksFreq(&rcc_clk);
-  SERIAL_IMPL.printf("system-clock:%d,sdio:%d,usb:%d\r\n",rcc_clk.SYSCLK_Frequency,rcc_clk.SDIO_Frequency,rcc_clk.USB_Frequency);
-  #endif
 
   #if HAS_MULTI_SERIAL && !HAS_ETHERNET
     #ifndef BAUDRATE_2
@@ -1460,10 +1045,6 @@ void setup() {
     OUT_WRITE(SMART_EFFECTOR_MOD_PIN, LOW);   // Put Smart Effector into NORMAL mode
   #endif
 
-  #if HAS_FILAMENT_SENSOR
-    SETUP_RUN(runout.setup());
-  #endif
-
   #if HAS_TMC220x
     SETUP_RUN(tmc_serial_begin());
   #endif
@@ -1480,17 +1061,11 @@ void setup() {
     powerManager.init();
   #endif
 
-  #if ENABLED(POWER_LOSS_RECOVERY) && !TRONXY_UI
-    SETUP_RUN(recovery.setup());
-  #endif
-
   #if HAS_STEPPER_RESET
     SETUP_RUN(disableStepperDrivers());
   #endif
 
   SETUP_RUN(hal.init_board());
-
-  SETUP_RUN(esp_wifi_init());
 
   // Report Reset Reason
   if (mcu & RST_POWER_ON)  SERIAL_ECHOLNPGM(STR_POWERUP);
@@ -1535,11 +1110,7 @@ void setup() {
 
   // UI must be initialized before EEPROM
   // (because EEPROM code calls the UI).
-  #if TRONXY_UI
-    tronxyInit();
-  #else
-    SETUP_RUN(ui.init());
-  #endif
+  SETUP_RUN(ui.init());
 
   #if PIN_EXISTS(SAFE_POWER)
     #if HAS_DRIVER_SAFE_POWER_PROTECT
@@ -1548,10 +1119,6 @@ void setup() {
       SETUP_LOG("SAFE_POWER");
       OUT_WRITE(SAFE_POWER_PIN, HIGH);
     #endif
-  #endif
-
-  #if BOTH(SDSUPPORT, SDCARD_EEPROM_EMULATION)
-    SETUP_RUN(card.mount());          // Mount media with settings before first_load
   #endif
 
   SETUP_RUN(settings.first_load());   // Load data from EEPROM if available (or use defaults)
@@ -1566,52 +1133,17 @@ void setup() {
     SETUP_RUN(probe.tare_init());
   #endif
 
-  #if HAS_ETHERNET
-    SETUP_RUN(ethernet.init());
-  #endif
-
   #if HAS_TOUCH_BUTTONS
     SETUP_RUN(touchBt.init());
   #endif
-
-  TERN_(HAS_M206_COMMAND, current_position += home_offset); // Init current position based on home_offset
 
   sync_plan_position();               // Vital to init stepper/planner equivalent for current_position
 
   SETUP_RUN(thermalManager.init());   // Initialize temperature loop
 
-  SETUP_RUN(print_job_timer.init());  // Initial setup of print job timer
-
   SETUP_RUN(endstops.init());         // Init endstops and pullups
 
-  #if ENABLED(DELTA) && !HAS_SOFTWARE_ENDSTOPS
-    SETUP_RUN(refresh_delta_clip_start_height()); // Init safe delta height without soft endstops
-  #endif
-
   SETUP_RUN(stepper.init());          // Init stepper. This enables interrupts!
-
-  #if HAS_SERVOS
-    SETUP_RUN(servo_init());
-  #endif
-
-  #if HAS_Z_SERVO_PROBE
-    SETUP_RUN(probe.servo_probe_init());
-  #endif
-
-  #if HAS_PHOTOGRAPH
-    OUT_WRITE(PHOTOGRAPH_PIN, LOW);
-  #endif
-
-  #if HAS_CUTTER
-    SETUP_RUN(cutter.init());
-  #endif
-
-  #if ENABLED(COOLANT_MIST)
-    OUT_WRITE(COOLANT_MIST_PIN, COOLANT_MIST_INVERT);   // Init Mist Coolant OFF
-  #endif
-  #if ENABLED(COOLANT_FLOOD)
-    OUT_WRITE(COOLANT_FLOOD_PIN, COOLANT_FLOOD_INVERT); // Init Flood Coolant OFF
-  #endif
 
   #if HAS_BED_PROBE
     #if PIN_EXISTS(PROBE_ENABLE)
@@ -1727,55 +1259,6 @@ void setup() {
     OUT_WRITE(STAT_LED_BLUE_PIN, LOW); // OFF
   #endif
 
-  #if ENABLED(CASE_LIGHT_ENABLE)
-    SETUP_RUN(caselight.init());
-  #endif
-
-  #if HAS_PRUSA_MMU1
-    SETUP_RUN(mmu_init());
-  #endif
-
-  #if HAS_FANMUX
-    SETUP_RUN(fanmux_init());
-  #endif
-
-  #if ENABLED(MIXING_EXTRUDER)
-    SETUP_RUN(mixer.init());
-  #endif
-
-  #if ENABLED(BLTOUCH)
-    SETUP_RUN(bltouch.init(/*set_voltage=*/true));
-  #endif
-
-  #if ENABLED(MAGLEV4)
-    OUT_WRITE(MAGLEV_TRIGGER_PIN, LOW);
-  #endif
-
-  #if ENABLED(I2C_POSITION_ENCODERS)
-    SETUP_RUN(I2CPEM.init());
-  #endif
-
-  #if ENABLED(EXPERIMENTAL_I2CBUS) && I2C_SLAVE_ADDRESS > 0
-    SETUP_LOG("i2c...");
-    i2c.onReceive(i2c_on_receive);
-    i2c.onRequest(i2c_on_request);
-  #endif
-
-  #if DO_SWITCH_EXTRUDER
-    SETUP_RUN(move_extruder_servo(0));  // Initialize extruder servo
-  #endif
-
-  #if ENABLED(SWITCHING_NOZZLE)
-    SETUP_LOG("SWITCHING_NOZZLE");
-    // Initialize nozzle servo(s)
-    #if SWITCHING_NOZZLE_TWO_SERVOS
-      lower_nozzle(0);
-      raise_nozzle(1);
-    #else
-      move_nozzle_servo(0);
-    #endif
-  #endif
-
   #if ENABLED(PARKING_EXTRUDER)
     SETUP_RUN(pe_solenoid_init());
   #elif ENABLED(MAGNETIC_PARKING_EXTRUDER)
@@ -1807,10 +1290,6 @@ void setup() {
     SETUP_RUN(stepper_driver_backward_report());
   #endif
 
-  #if HAS_PRUSA_MMU2
-    SETUP_RUN(mmu2.init());
-  #endif
-
   #if ENABLED(IIC_BL24CXX_EEPROM)
     BL24CXX::init();
     const uint8_t err = BL24CXX::check();
@@ -1834,9 +1313,6 @@ void setup() {
   #endif
 
   #if HAS_TFT_LVGL_UI
-    #if ENABLED(SDSUPPORT)
-      if (!card.isMounted()) SETUP_RUN(card.mount()); // Mount SD to load graphics and fonts
-    #endif
     SETUP_RUN(tft_lvgl_init());
   #endif
 
@@ -1860,7 +1336,7 @@ void setup() {
     SETUP_RUN(easythreed_ui.init());
   #endif
 
-  #if HAS_TRINAMIC_CONFIG && DISABLED(PSU_DEFAULT_OFF)
+  #if HAS_TRINAMIC_CONFIG
     SETUP_RUN(test_tmc_connection());
   #endif
 
@@ -1892,30 +1368,11 @@ void loop() {
   do {
     idle();
 
-    #if ENABLED(SDSUPPORT)
-      if (card.flag.abort_sd_printing) abortSDPrinting();
-      if (marlin_state == MF_SD_COMPLETE) finishSDPrinting();
-    #endif
-
     queue.advance();
-
-    #if EITHER(POWER_OFF_TIMER, POWER_OFF_WAIT_FOR_COOLDOWN)
-      powerManager.checkAutoPowerOff();
-    #endif
-
     endstops.event_handler();
 
     TERN_(HAS_TFT_LVGL_UI, printer_state_polling());
     
-    #if TRONXY_UI
-    // tronxyLoopFun();
-    if(globalStop) {
-      idle();
-      globalStop = false;
-    }
-    mevt.execute();
-    #endif
-
     TERN_(MARLIN_TEST_BUILD, runPeriodicTests());
 
   } while (ENABLED(__AVR__)); // Loop forever on slower (AVR) boards

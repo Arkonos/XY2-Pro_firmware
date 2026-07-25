@@ -128,7 +128,7 @@ static SPISettings spiConfig;
       spiSend(buf[i]);
   }
 
-#elif !TRONXY_UI
+#else
 
   // ------------------------
   // Hardware SPI

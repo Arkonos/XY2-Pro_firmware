@@ -50,20 +50,6 @@ void GcodeSuite::M92() {
     if (parser.seenval(AXIS_CHAR(i))) {
       if (TERN1(HAS_EXTRUDERS, i != E_AXIS))
         planner.settings.axis_steps_per_mm[i] = parser.value_per_axis_units((AxisEnum)i);
-      else {
-        #if HAS_EXTRUDERS
-          const float value = parser.value_per_axis_units((AxisEnum)(E_AXIS_N(target_extruder)));
-          if (value < 20) {
-            float factor = planner.settings.axis_steps_per_mm[E_AXIS_N(target_extruder)] / value; // increase e constants if M92 E14 is given for netfab.
-            #if HAS_CLASSIC_JERK && HAS_CLASSIC_E_JERK
-              planner.max_jerk.e *= factor;
-            #endif
-            planner.settings.max_feedrate_mm_s[E_AXIS_N(target_extruder)] *= factor;
-            planner.max_acceleration_steps_per_s2[E_AXIS_N(target_extruder)] *= factor;
-          }
-          planner.settings.axis_steps_per_mm[E_AXIS_N(target_extruder)] = value;
-        #endif
-      }
     }
   }
   planner.refresh_positioning();
@@ -97,29 +83,8 @@ void GcodeSuite::M92_report(const bool forReplay/*=true*/, const int8_t e/*=-1*/
     PSTR("  M92 X"), LINEAR_UNIT(planner.settings.axis_steps_per_mm[X_AXIS]),
     SP_Y_STR, LINEAR_UNIT(planner.settings.axis_steps_per_mm[Y_AXIS]),
     SP_Z_STR, LINEAR_UNIT(planner.settings.axis_steps_per_mm[Z_AXIS]),
-    SP_I_STR, I_AXIS_UNIT(planner.settings.axis_steps_per_mm[I_AXIS]),
-    SP_J_STR, J_AXIS_UNIT(planner.settings.axis_steps_per_mm[J_AXIS]),
-    SP_K_STR, K_AXIS_UNIT(planner.settings.axis_steps_per_mm[K_AXIS]),
-    SP_U_STR, U_AXIS_UNIT(planner.settings.axis_steps_per_mm[U_AXIS]),
-    SP_V_STR, V_AXIS_UNIT(planner.settings.axis_steps_per_mm[V_AXIS]),
-    SP_W_STR, W_AXIS_UNIT(planner.settings.axis_steps_per_mm[W_AXIS])
   ));
-  #if HAS_EXTRUDERS && DISABLED(DISTINCT_E_FACTORS)
-    SERIAL_ECHOPGM_P(SP_E_STR, VOLUMETRIC_UNIT(planner.settings.axis_steps_per_mm[E_AXIS]));
-  #endif
   SERIAL_EOL();
-
-  #if ENABLED(DISTINCT_E_FACTORS)
-    LOOP_L_N(i, E_STEPPERS) {
-      if (e >= 0 && i != e) continue;
-      report_echo_start(forReplay);
-      SERIAL_ECHOLNPGM_P(
-        PSTR("  M92 T"), i,
-        SP_E_STR, VOLUMETRIC_UNIT(planner.settings.axis_steps_per_mm[E_AXIS_N(i)])
-      );
-    }
-  #else
-    UNUSED(e);
-  #endif
+  UNUSED(e);
   #endif
 }

@@ -37,9 +37,7 @@ void GcodeSuite::G4() {
   #if ENABLED(NANODLP_Z_SYNC)
     SERIAL_ECHOLNPGM(STR_Z_MOVE_COMP);
   #endif
-  #if !TRONXY_UI
   if (!ui.has_status()) LCD_MESSAGE(MSG_DWELL);
-  #endif
 
   dwell(dwell_ms);
 }

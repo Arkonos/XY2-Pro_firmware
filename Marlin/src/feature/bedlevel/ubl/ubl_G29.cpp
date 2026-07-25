@@ -497,12 +497,8 @@ void unified_bed_leveling::G29() {
              * Until that is decided, this can be forced with the X and Y parameters.
              */
             param.XY_pos.set(
-              #if IS_KINEMATIC
-                X_HOME_POS, Y_HOME_POS
-              #else
-                probe.offset_xy.x > 0 ? X_BED_SIZE : 0,
-                probe.offset_xy.y < 0 ? Y_BED_SIZE : 0
-              #endif
+              probe.offset_xy.x > 0 ? X_BED_SIZE : 0,
+              probe.offset_xy.y < 0 ? Y_BED_SIZE : 0
             );
           }
 

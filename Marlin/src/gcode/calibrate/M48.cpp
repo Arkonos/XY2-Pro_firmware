@@ -27,9 +27,8 @@
 #include "../gcode.h"
 #include "../../module/motion.h"
 #include "../../module/probe.h"
-#if !TRONXY_UI
 #include "../../lcd/marlinui.h"
-#endif
+
 #include "../../feature/bedlevel/bedlevel.h"
 
 #if HAS_LEVELING
@@ -85,9 +84,7 @@ void GcodeSuite::M48() {
   };
 
   if (!probe.can_reach(test_position)) {
-    #if !TRONXY_UI
     ui.set_status(GET_TEXT_F(MSG_M48_OUT_OF_BOUNDS), 99);
-    #endif
     SERIAL_ECHOLNPGM("? (X,Y) out of bounds.");
     return;
   }
@@ -154,9 +151,7 @@ void GcodeSuite::M48() {
     LOOP_L_N(n, n_samples) {
       #if HAS_STATUS_MESSAGE
         // Display M48 progress in the status bar
-        #if !TRONXY_UI
         ui.status_printf(0, F(S_FMT ": %d/%d"), GET_TEXT(MSG_M48_POINT), int(n + 1), int(n_samples));
-        #endif
       #endif
 
       // When there are "legs" of movement move around the point before probing
@@ -166,12 +161,7 @@ void GcodeSuite::M48() {
         const int dir = (random(0, 10) > 5.0) ? -1 : 1;  // clockwise or counter clockwise
         float angle = random(0, 360);
         const float radius = random(
-          #if ENABLED(DELTA)
-            int(0.1250000000 * (DELTA_PRINTABLE_RADIUS)),
-            int(0.3333333333 * (DELTA_PRINTABLE_RADIUS))
-          #else
             int(5), int(0.125 * _MIN(X_BED_SIZE, Y_BED_SIZE))
-          #endif
         );
         if (verbose_level > 3) {
           SERIAL_ECHOPGM("Start radius:", radius, " angle:", angle, " dir:");
@@ -206,15 +196,8 @@ void GcodeSuite::M48() {
             noz_pos.y + float(sin(RADIANS(angle))) * radius
           };
 
-          #if ENABLED(DELTA)
-            // If the probe can't reach the point on a round bed...
-            // Simply scale the numbers to bring them closer to origin.
-            while (!probe.can_reach(next_pos)) {
-              next_pos *= 0.8f;
-              if (verbose_level > 3)
-                SERIAL_ECHOLNPGM_P(PSTR("Moving inward: X"), next_pos.x, SP_Y_STR, next_pos.y);
-            }
-          #elif HAS_ENDSTOPS
+
+          #if HAS_ENDSTOPS
             // For a rectangular bed just keep the probe in bounds
             LIMIT(next_pos.x, X_MIN_POS, X_MAX_POS);
             LIMIT(next_pos.y, Y_MIN_POS, Y_MAX_POS);
@@ -272,9 +255,7 @@ void GcodeSuite::M48() {
     #if HAS_STATUS_MESSAGE
       // Display M48 results in the status bar
       char sigma_str[8];
-      #if !TRONXY_UI
       ui.status_printf(0, F(S_FMT ": %s"), GET_TEXT(MSG_M48_DEVIATION), dtostrf(sigma, 2, 6, sigma_str));
-      #endif
     #endif
   }
 

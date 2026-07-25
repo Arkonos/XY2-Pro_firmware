@@ -291,57 +291,14 @@ public:
   static bool value_bool() { return !has_value() || !!value_byte(); }
 
   // Units modes: Inches, Fahrenheit, Kelvin
+  static float mm_to_linear_unit(const_float_t mm)     { return mm; }
+  static float mm_to_volumetric_unit(const_float_t mm) { return mm; }
 
-  #if ENABLED(INCH_MODE_SUPPORT)
-    static float mm_to_linear_unit(const_float_t mm)     { return mm / linear_unit_factor; }
-    static float mm_to_volumetric_unit(const_float_t mm) { return mm / (volumetric_enabled ? volumetric_unit_factor : linear_unit_factor); }
-
-    // Init linear units by constructor
-    GCodeParser() { set_input_linear_units(LINEARUNIT_MM); }
-
-    static void set_input_linear_units(const LinearUnit units) {
-      switch (units) {
-        default:
-        case LINEARUNIT_MM:   linear_unit_factor =  1.0f; break;
-        case LINEARUNIT_INCH: linear_unit_factor = 25.4f; break;
-      }
-      volumetric_unit_factor = POW(linear_unit_factor, 3);
-    }
-
-    static float axis_unit_factor(const AxisEnum axis) {
-      if (false
-        || TERN0(AXIS4_ROTATES, axis == I_AXIS)
-        || TERN0(AXIS5_ROTATES, axis == J_AXIS)
-        || TERN0(AXIS6_ROTATES, axis == K_AXIS)
-        || TERN0(AXIS7_ROTATES, axis == U_AXIS)
-        || TERN0(AXIS8_ROTATES, axis == V_AXIS)
-        || TERN0(AXIS9_ROTATES, axis == W_AXIS)
-      ) return 1.0f;
-      #if HAS_EXTRUDERS
-        if (axis >= E_AXIS && volumetric_enabled) return volumetric_unit_factor;
-      #endif
-      return linear_unit_factor;
-    }
-
-    static float linear_value_to_mm(const_float_t v)                  { return v * linear_unit_factor; }
-    static float axis_value_to_mm(const AxisEnum axis, const float v) { return v * axis_unit_factor(axis); }
-    static float per_axis_value(const AxisEnum axis, const float v)   { return v / axis_unit_factor(axis); }
-
-  #else
-
-    static float mm_to_linear_unit(const_float_t mm)     { return mm; }
-    static float mm_to_volumetric_unit(const_float_t mm) { return mm; }
-
-    static float linear_value_to_mm(const_float_t v)             { return v; }
-    static float axis_value_to_mm(const AxisEnum, const float v) { return v; }
-    static float per_axis_value(const AxisEnum, const float v)   { return v; }
-
-  #endif
-
-  static bool using_inch_units() { return mm_to_linear_unit(1.0f) != 1.0f; }
+  static float linear_value_to_mm(const_float_t v)             { return v; }
+  static float axis_value_to_mm(const AxisEnum, const float v) { return v; }
+  static float per_axis_value(const AxisEnum, const float v)   { return v; }
 
   #define IN_TO_MM(I)        ((I) * 25.4f)
-  #define MM_TO_IN(M)        ((M) / 25.4f)
   #define LINEAR_UNIT(V)     parser.mm_to_linear_unit(V)
   #define VOLUMETRIC_UNIT(V) parser.mm_to_volumetric_unit(V)
 

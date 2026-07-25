@@ -30,55 +30,6 @@
   #define AXIS_RELATIVE_MODES {}
 #endif
 
-#ifdef SWITCHING_NOZZLE_E1_SERVO_NR
-  #define SWITCHING_NOZZLE_TWO_SERVOS 1
-#endif
-
-// Determine NUM_SERVOS if none was supplied
-#ifndef NUM_SERVOS
-  #define NUM_SERVOS 0
-  #if ANY(HAS_Z_SERVO_PROBE, CHAMBER_VENT, SWITCHING_TOOLHEAD, SWITCHING_EXTRUDER, SWITCHING_NOZZLE, SPINDLE_SERVO)
-    #if NUM_SERVOS <= Z_PROBE_SERVO_NR
-      #undef NUM_SERVOS
-      #define NUM_SERVOS (Z_PROBE_SERVO_NR + 1)
-    #endif
-    #if NUM_SERVOS <= CHAMBER_VENT_SERVO_NR
-      #undef NUM_SERVOS
-      #define NUM_SERVOS (CHAMBER_VENT_SERVO_NR + 1)
-    #endif
-    #if NUM_SERVOS <= SWITCHING_TOOLHEAD_SERVO_NR
-      #undef NUM_SERVOS
-      #define NUM_SERVOS (SWITCHING_TOOLHEAD_SERVO_NR + 1)
-    #endif
-    #if NUM_SERVOS <= SWITCHING_NOZZLE_SERVO_NR
-      #undef NUM_SERVOS
-      #define NUM_SERVOS (SWITCHING_NOZZLE_SERVO_NR + 1)
-    #endif
-    #if NUM_SERVOS <= SWITCHING_NOZZLE_E1_SERVO_NR
-      #undef NUM_SERVOS
-      #define NUM_SERVOS (SWITCHING_NOZZLE_E1_SERVO_NR + 1)
-    #endif
-    #if NUM_SERVOS <= SWITCHING_EXTRUDER_SERVO_NR
-      #undef NUM_SERVOS
-      #define NUM_SERVOS (SWITCHING_EXTRUDER_SERVO_NR + 1)
-    #endif
-    #if NUM_SERVOS <= SWITCHING_EXTRUDER_E23_SERVO_NR
-      #undef NUM_SERVOS
-      #define NUM_SERVOS (SWITCHING_EXTRUDER_E23_SERVO_NR + 1)
-    #endif
-    #if NUM_SERVOS <= SPINDLE_SERVO_NR
-      #undef NUM_SERVOS
-      #define NUM_SERVOS (SPINDLE_SERVO_NR + 1)
-    #endif
-  #endif
-#endif
-
-// Convenience override for a BLTouch alone
-#if ENABLED(BLTOUCH) && NUM_SERVOS == 1
-  #undef SERVO_DELAY
-  #define SERVO_DELAY { 50 }
-#endif
-
 #if !HAS_STOWABLE_PROBE
   #undef PROBE_DEPLOY_STOW_MENU
 #endif
@@ -102,7 +53,6 @@
   #undef ADVANCED_PAUSE_FEATURE
   #undef FILAMENT_RUNOUT_DISTANCE_MM
   #undef FILAMENT_LOAD_UNLOAD_GCODES
-  #undef DISABLE_INACTIVE_EXTRUDER
   #undef FILAMENT_LOAD_UNLOAD_GCODES
   #undef EXTRUDER_RUNOUT_PREVENT
   #undef PREVENT_COLD_EXTRUSION
@@ -560,10 +510,6 @@
   #define HAS_MIXER_SYNC_CHANNEL 1
 #endif
 
-#if EITHER(DUAL_X_CARRIAGE, MULTI_NOZZLE_DUPLICATION)
-  #define HAS_DUPLICATION_MODE 1
-#endif
-
 #if ENABLED(PRINTCOUNTER) && (SERVICE_INTERVAL_1 > 0 || SERVICE_INTERVAL_2 > 0 || SERVICE_INTERVAL_3 > 0)
   #define HAS_SERVICE_INTERVALS 1
 #endif
@@ -581,9 +527,6 @@
   #endif
 #endif
 
-#if ANY(PTC_PROBE, PTC_BED, PTC_HOTEND)
-  #define HAS_PTC 1
-#endif
 
 // Let SD_FINISHED_RELEASECOMMAND stand in for SD_FINISHED_STEPPERRELEASE
 #if ENABLED(SD_FINISHED_STEPPERRELEASE)
@@ -598,24 +541,12 @@
   #undef MENU_ADDAUTOSTART
 #endif
 
-#if EITHER(SDSUPPORT, LCD_SET_PROGRESS_MANUALLY)
-  #define HAS_PRINT_PROGRESS 1
-#endif
-
 #if ANY(HAS_MARLINUI_MENU, ULTIPANEL_FEEDMULTIPLY, SOFT_RESET_ON_KILL)
   #define HAS_ENCODER_ACTION 1
 #endif
 
 #if STATUS_MESSAGE_TIMEOUT_SEC > 0
   #define HAS_STATUS_MESSAGE_TIMEOUT 1
-#endif
-
-#if ENABLED(SDSUPPORT) && SD_PROCEDURE_DEPTH
-  #define HAS_MEDIA_SUBCALLS 1
-#endif
-
-#if HAS_PRINT_PROGRESS && EITHER(PRINT_PROGRESS_SHOW_DECIMALS, SHOW_REMAINING_TIME)
-  #define HAS_PRINT_PROGRESS_PERMYRIAD 1
 #endif
 
 #if ANY(MARLIN_BRICKOUT, MARLIN_INVADERS, MARLIN_SNAKE, MARLIN_MAZE)
@@ -635,7 +566,7 @@
 #if EITHER(MIN_SOFTWARE_ENDSTOPS, MAX_SOFTWARE_ENDSTOPS)
   #define HAS_SOFTWARE_ENDSTOPS 1
 #endif
-#if ANY(EXTENSIBLE_UI, IS_NEWPANEL, EMERGENCY_PARSER, HAS_ADC_BUTTONS, HAS_DWIN_E3V2) || TRONXY_UI
+#if ANY(EXTENSIBLE_UI, IS_NEWPANEL, EMERGENCY_PARSER, HAS_ADC_BUTTONS, HAS_DWIN_E3V2)
   #define HAS_RESUME_CONTINUE 1
 #endif
 
@@ -643,9 +574,6 @@
   #define HAS_COLOR_LEDS 1
 #else
   #undef LED_POWEROFF_TIMEOUT
-#endif
-#if ALL(HAS_RESUME_CONTINUE, PRINTER_EVENT_LEDS, SDSUPPORT)
-  #define HAS_LEDS_OFF_FLAG 1
 #endif
 #ifdef DISPLAY_SLEEP_MINUTES
   #define HAS_DISPLAY_SLEEP 1
@@ -679,22 +607,6 @@
   #endif
 #endif
 
-#if defined(X2_DRIVER_TYPE) && DISABLED(DUAL_X_CARRIAGE)
-  #define HAS_DUAL_X_STEPPERS 1
-#endif
-
-//
-// Spindle/Laser power display types
-// Defined here so sanity checks can use them
-//
-#if EITHER(SPINDLE_FEATURE, LASER_FEATURE)
-  #define HAS_CUTTER 1
-  #define _CUTTER_POWER_PWM255  1
-  #define _CUTTER_POWER_PERCENT 2
-  #define _CUTTER_POWER_RPM     3
-  #define _CUTTER_POWER(V)      _CAT(_CUTTER_POWER_, V)
-  #define CUTTER_UNIT_IS(V)    (_CUTTER_POWER(CUTTER_POWER_UNIT) == _CUTTER_POWER(V))
-#endif
 
 #if !defined(__AVR__) || !defined(USBCON)
   // Define constants and variables for buffering serial data.
@@ -833,17 +745,6 @@
   #define TOUCH_UI_ULTIPANEL 1
 #endif
 
-// Poll-based jogging for joystick and other devices
-#if ENABLED(JOYSTICK)
-  #define POLL_JOG
-#endif
-
-#if X2_HOME_DIR > 0
-  #define X2_HOME_TO_MAX 1
-#elif X2_HOME_DIR < 0
-  #define X2_HOME_TO_MIN 1
-#endif
-
 #ifndef HOMING_BUMP_MM
   #define HOMING_BUMP_MM { 0, 0, 0 }
 #endif
@@ -979,15 +880,7 @@
 // SD Card connection methods
 // Defined here so pins and sanity checks can use them
 //
-#if ENABLED(SDSUPPORT)
-  #define _SDCARD_LCD          1
-  #define _SDCARD_ONBOARD      2
-  #define _SDCARD_CUSTOM_CABLE 3
-  #define _SDCARD_ID(V) _CAT(_SDCARD_, V)
-  #define SD_CONNECTION_IS(V) (_SDCARD_ID(SDCARD_CONNECTION) == _SDCARD_ID(V))
-#else
-  #define SD_CONNECTION_IS(...) 0
-#endif
+#define SD_CONNECTION_IS(...) 0
 
 // Power Monitor sensors
 #if EITHER(POWER_MONITOR_CURRENT, POWER_MONITOR_VOLTAGE)
@@ -1056,14 +949,4 @@
 #endif
 #if EITHER(MEATPACK_ON_SERIAL_PORT_1, MEATPACK_ON_SERIAL_PORT_2)
   #define HAS_MEATPACK 1
-#endif
-
-// AVR are (usually) too limited in resources to store the configuration into the binary
-#if ENABLED(CONFIGURATION_EMBEDDING) && !defined(FORCE_CONFIG_EMBED) && (defined(__AVR__) || DISABLED(SDSUPPORT) || EITHER(SDCARD_READONLY, DISABLE_M503))
-  #undef CONFIGURATION_EMBEDDING
-  #define CANNOT_EMBED_CONFIGURATION defined(__AVR__)
-#endif
-
-#if ANY(DISABLE_INACTIVE_X, DISABLE_INACTIVE_Y, DISABLE_INACTIVE_Z, DISABLE_INACTIVE_I, DISABLE_INACTIVE_J, DISABLE_INACTIVE_K, DISABLE_INACTIVE_U, DISABLE_INACTIVE_V, DISABLE_INACTIVE_W, DISABLE_INACTIVE_E)
-  #define HAS_DISABLE_INACTIVE_AXIS 1
 #endif

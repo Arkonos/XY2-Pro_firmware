@@ -32,23 +32,12 @@
 
 #include "../../MarlinCore.h"
 
-#if HAS_FILAMENT_SENSOR
-  #include "../../feature/runout.h"
-#endif
-
 #if HAS_FANCHECK
   #include "../../feature/fancheck.h"
 #endif
 
-#if ENABLED(POWER_LOSS_RECOVERY)
-  #include "../../feature/powerloss.h"
-#endif
-
 #if HAS_BED_PROBE
   #include "../../module/probe.h"
-  #if ENABLED(BLTOUCH)
-    #include "../../feature/bltouch.h"
-  #endif
 #endif
 
 #if ENABLED(SOUND_MENU_ITEM)
@@ -106,175 +95,6 @@ void menu_advanced_settings();
 
 #endif
 
-#if HAS_MULTI_EXTRUDER
-
-  #include "../../module/tool_change.h"
-
-  void menu_tool_change() {
-    START_MENU();
-    BACK_ITEM(MSG_CONFIGURATION);
-    #if ENABLED(TOOLCHANGE_FILAMENT_SWAP)
-      static constexpr float max_extrude = TERN(PREVENT_LENGTHY_EXTRUDE, EXTRUDE_MAXLENGTH, 500);
-      #if ENABLED(TOOLCHANGE_PARK)
-        EDIT_ITEM(bool, MSG_FILAMENT_PARK_ENABLED, &toolchange_settings.enable_park);
-      #endif
-      EDIT_ITEM(float3, MSG_FILAMENT_SWAP_LENGTH, &toolchange_settings.swap_length, 0, max_extrude);
-      EDIT_ITEM(float41sign, MSG_FILAMENT_SWAP_EXTRA, &toolchange_settings.extra_resume, -10, 10);
-      EDIT_ITEM_FAST(int4, MSG_SINGLENOZZLE_RETRACT_SPEED, &toolchange_settings.retract_speed, 10, 5400);
-      EDIT_ITEM_FAST(int4, MSG_SINGLENOZZLE_UNRETRACT_SPEED, &toolchange_settings.unretract_speed, 10, 5400);
-      EDIT_ITEM(float3, MSG_FILAMENT_PURGE_LENGTH, &toolchange_settings.extra_prime, 0, max_extrude);
-      EDIT_ITEM_FAST(int4, MSG_SINGLENOZZLE_PRIME_SPEED, &toolchange_settings.prime_speed, 10, 5400);
-      EDIT_ITEM_FAST(uint8, MSG_SINGLENOZZLE_FAN_SPEED, &toolchange_settings.fan_speed, 0, 255);
-      EDIT_ITEM_FAST(uint8, MSG_SINGLENOZZLE_FAN_TIME, &toolchange_settings.fan_time, 1, 30);
-    #endif
-    EDIT_ITEM(float3, MSG_TOOL_CHANGE_ZLIFT, &toolchange_settings.z_raise, 0, 10);
-    END_MENU();
-  }
-
-  #if ENABLED(TOOLCHANGE_MIGRATION_FEATURE)
-
-    #include "../../module/motion.h" // for active_extruder
-    #include "../../gcode/queue.h"
-
-    void menu_toolchange_migration() {
-      FSTR_P const msg_migrate = GET_TEXT_F(MSG_TOOL_MIGRATION_SWAP);
-
-      START_MENU();
-      BACK_ITEM(MSG_CONFIGURATION);
-
-      // Auto mode ON/OFF
-      EDIT_ITEM(bool, MSG_TOOL_MIGRATION_AUTO, &migration.automode);
-      EDIT_ITEM(uint8, MSG_TOOL_MIGRATION_END, &migration.last, 0, EXTRUDERS - 1);
-
-      // Migrate to a chosen extruder
-      EXTRUDER_LOOP() {
-        if (e != active_extruder) {
-          ACTION_ITEM_N_F(e, msg_migrate, []{
-            char cmd[12];
-            sprintf_P(cmd, PSTR("M217 T%i"), int(MenuItemBase::itemIndex));
-            queue.inject(cmd);
-          });
-        }
-      }
-      END_MENU();
-    }
-  #endif
-
-#endif
-
-#if HAS_HOTEND_OFFSET
-  #include "../../module/motion.h"
-  #include "../../gcode/queue.h"
-
-  void menu_tool_offsets() {
-
-    auto _recalc_offsets = []{
-      if (active_extruder && all_axes_trusted()) {  // For the 2nd extruder re-home so the next tool-change gets the new offsets.
-        queue.inject_P(G28_STR); // In future, we can babystep the 2nd extruder (if active), making homing unnecessary.
-        active_extruder = 0;
-      }
-    };
-
-    START_MENU();
-    BACK_ITEM(MSG_CONFIGURATION);
-    #if ENABLED(DUAL_X_CARRIAGE)
-      EDIT_ITEM_FAST_N(float42_52, X_AXIS, MSG_HOTEND_OFFSET_A, &hotend_offset[1].x, float(X2_HOME_POS - 25), float(X2_HOME_POS + 25), _recalc_offsets);
-    #else
-      EDIT_ITEM_FAST_N(float42_52, X_AXIS, MSG_HOTEND_OFFSET_A, &hotend_offset[1].x, -99.0, 99.0, _recalc_offsets);
-    #endif
-    EDIT_ITEM_FAST_N(float42_52, Y_AXIS, MSG_HOTEND_OFFSET_A, &hotend_offset[1].y, -99.0, 99.0, _recalc_offsets);
-    EDIT_ITEM_FAST_N(float42_52, Z_AXIS, MSG_HOTEND_OFFSET_A, &hotend_offset[1].z, Z_PROBE_LOW_POINT, 10.0, _recalc_offsets);
-    #if ENABLED(EEPROM_SETTINGS)
-      ACTION_ITEM(MSG_STORE_EEPROM, ui.store_settings);
-    #endif
-    END_MENU();
-  }
-#endif
-
-#if ENABLED(DUAL_X_CARRIAGE)
-
-  void menu_idex() {
-    const bool need_g28 = axes_should_home(_BV(Y_AXIS)|_BV(Z_AXIS));
-
-    START_MENU();
-    BACK_ITEM(MSG_CONFIGURATION);
-
-    GCODES_ITEM(MSG_IDEX_MODE_AUTOPARK,  F("M605S1\nG28X\nG1X0"));
-    GCODES_ITEM(MSG_IDEX_MODE_DUPLICATE, need_g28
-      ? F("M605S1\nT0\nG28\nM605S2\nG28X\nG1X0")         // If Y or Z is not homed, do a full G28 first
-      : F("M605S1\nT0\nM605S2\nG28X\nG1X0")
-    );
-    GCODES_ITEM(MSG_IDEX_MODE_MIRRORED_COPY, need_g28
-      ? F("M605S1\nT0\nG28\nM605S2\nG28X\nG1X0\nM605S3") // If Y or Z is not homed, do a full G28 first
-      : F("M605S1\nT0\nM605S2\nG28 X\nG1X0\nM605S3")
-    );
-    GCODES_ITEM(MSG_IDEX_MODE_FULL_CTRL, F("M605S0\nG28X"));
-
-    EDIT_ITEM(float42_52, MSG_IDEX_DUPE_GAP, &duplicate_extruder_x_offset, (X2_MIN_POS) - (X1_MIN_POS), (X_BED_SIZE) - 20);
-
-    END_MENU();
-  }
-
-#endif
-
-#if ENABLED(BLTOUCH)
-
-  #if ENABLED(BLTOUCH_LCD_VOLTAGE_MENU)
-    void bltouch_report() {
-      #if REPORT_PARAMETER
-      PGMSTR(mode0, "OD");
-      PGMSTR(mode1, "5V");
-      DEBUG_ECHOPGM("BLTouch Mode: ");
-      DEBUG_ECHOPGM_P(bltouch.od_5v_mode ? mode1 : mode0);
-      DEBUG_ECHOLNPGM(" (Default " TERN(BLTOUCH_SET_5V_MODE, "5V", "OD") ")");
-      char mess[21];
-      strcpy_P(mess, PSTR("BLTouch Mode: "));
-      strcpy_P(&mess[15], bltouch.od_5v_mode ? mode1 : mode0);
-      ui.set_status(mess);
-      ui.return_to_status();
-      #endif
-    }
-  #endif
-
-  void menu_bltouch() {
-    START_MENU();
-    BACK_ITEM(MSG_CONFIGURATION);
-    ACTION_ITEM(MSG_BLTOUCH_RESET, bltouch._reset);
-    ACTION_ITEM(MSG_BLTOUCH_SELFTEST, bltouch._selftest);
-    ACTION_ITEM(MSG_BLTOUCH_DEPLOY, bltouch._deploy);
-    ACTION_ITEM(MSG_BLTOUCH_STOW, bltouch._stow);
-    ACTION_ITEM(MSG_BLTOUCH_SW_MODE, bltouch._set_SW_mode);
-    #ifdef BLTOUCH_HS_MODE
-      EDIT_ITEM(bool, MSG_BLTOUCH_SPEED_MODE, &bltouch.high_speed_mode);
-    #endif
-    #if ENABLED(BLTOUCH_LCD_VOLTAGE_MENU)
-      CONFIRM_ITEM(MSG_BLTOUCH_5V_MODE, MSG_BLTOUCH_5V_MODE, MSG_BUTTON_CANCEL, bltouch._set_5V_mode, nullptr, GET_TEXT_F(MSG_BLTOUCH_MODE_CHANGE));
-      CONFIRM_ITEM(MSG_BLTOUCH_OD_MODE, MSG_BLTOUCH_OD_MODE, MSG_BUTTON_CANCEL, bltouch._set_OD_mode, nullptr, GET_TEXT_F(MSG_BLTOUCH_MODE_CHANGE));
-      ACTION_ITEM(MSG_BLTOUCH_MODE_STORE, bltouch._mode_store);
-      CONFIRM_ITEM(MSG_BLTOUCH_MODE_STORE_5V, MSG_BLTOUCH_MODE_STORE_5V, MSG_BUTTON_CANCEL, bltouch.mode_conv_5V, nullptr, GET_TEXT_F(MSG_BLTOUCH_MODE_CHANGE));
-      CONFIRM_ITEM(MSG_BLTOUCH_MODE_STORE_OD, MSG_BLTOUCH_MODE_STORE_OD, MSG_BUTTON_CANCEL, bltouch.mode_conv_OD, nullptr, GET_TEXT_F(MSG_BLTOUCH_MODE_CHANGE));
-      ACTION_ITEM(MSG_BLTOUCH_MODE_ECHO, bltouch_report);
-    #endif
-    END_MENU();
-  }
-
-#endif
-
-#if ENABLED(TOUCH_MI_PROBE)
-
-  void menu_touchmi() {
-    ui.defer_status_screen();
-    START_MENU();
-    BACK_ITEM(MSG_CONFIGURATION);
-    GCODES_ITEM(MSG_TOUCHMI_INIT, F("M851 Z0\nG28\nG1 F200 Z0"));
-    SUBMENU(MSG_ZPROBE_ZOFFSET, lcd_babystep_zoffset);
-    GCODES_ITEM(MSG_TOUCHMI_SAVE, F("M500\nG1 F200 Z10"));
-    GCODES_ITEM(MSG_TOUCHMI_ZTEST, F("G28\nG1 F200 Z0"));
-    END_MENU();
-  }
-
-#endif
-
 #if ENABLED(CONTROLLER_FAN_MENU)
 
   #include "../../feature/controllerfan.h"
@@ -304,19 +124,10 @@ void menu_advanced_settings();
       EDIT_ITEM(bool, MSG_AUTORETRACT, &fwretract.autoretract_enabled, fwretract.refresh_autoretract);
     #endif
     EDIT_ITEM(float52sign, MSG_CONTROL_RETRACT, &fwretract.settings.retract_length, 0, 100);
-    #if HAS_MULTI_EXTRUDER
-      EDIT_ITEM(float52sign, MSG_CONTROL_RETRACT_SWAP, &fwretract.settings.swap_retract_length, 0, 100);
-    #endif
     EDIT_ITEM(float3, MSG_CONTROL_RETRACTF, &fwretract.settings.retract_feedrate_mm_s, 1, 999);
     EDIT_ITEM(float52sign, MSG_CONTROL_RETRACT_ZHOP, &fwretract.settings.retract_zraise, 0, 999);
     EDIT_ITEM(float52sign, MSG_CONTROL_RETRACT_RECOVER, &fwretract.settings.retract_recover_extra, -100, 100);
-    #if HAS_MULTI_EXTRUDER
-      EDIT_ITEM(float52sign, MSG_CONTROL_RETRACT_RECOVER_SWAP, &fwretract.settings.swap_retract_recover_extra, -100, 100);
-    #endif
     EDIT_ITEM(float3, MSG_CONTROL_RETRACT_RECOVERF, &fwretract.settings.retract_recover_feedrate_mm_s, 1, 999);
-    #if HAS_MULTI_EXTRUDER
-      EDIT_ITEM(float3, MSG_CONTROL_RETRACT_RECOVER_SWAPF, &fwretract.settings.swap_retract_recover_feedrate_mm_s, 1, 999);
-    #endif
     END_MENU();
   }
 
@@ -494,9 +305,7 @@ void menu_configuration() {
 
   SUBMENU(MSG_ADVANCED_SETTINGS, menu_advanced_settings);
 
-  #if ENABLED(BABYSTEP_ZPROBE_OFFSET)
-    SUBMENU(MSG_ZPROBE_ZOFFSET, lcd_babystep_zoffset);
-  #elif HAS_BED_PROBE
+  #if HAS_BED_PROBE
     EDIT_ITEM(LCD_Z_OFFSET_TYPE, MSG_ZPROBE_ZOFFSET, &probe.offset.z, Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX);
   #endif
 
@@ -508,36 +317,11 @@ void menu_configuration() {
   #endif
 
   if (!busy) {
-    #if EITHER(DELTA_CALIBRATION_MENU, DELTA_AUTO_CALIBRATION)
-      SUBMENU(MSG_DELTA_CALIBRATE, menu_delta_calibrate);
-    #endif
-
-    #if HAS_HOTEND_OFFSET
-      SUBMENU(MSG_OFFSETS_MENU, menu_tool_offsets);
-    #endif
-
-    #if ENABLED(DUAL_X_CARRIAGE)
-      SUBMENU(MSG_IDEX_MENU, menu_idex);
-    #endif
-
-    #if ENABLED(BLTOUCH)
-      SUBMENU(MSG_BLTOUCH, menu_bltouch);
-    #endif
-
     #if ENABLED(TOUCH_MI_PROBE)
       SUBMENU(MSG_TOUCHMI_PROBE, menu_touchmi);
     #endif
   }
 
-  //
-  // Set single nozzle filament retract and prime length
-  //
-  #if HAS_MULTI_EXTRUDER
-    SUBMENU(MSG_TOOL_CHANGE, menu_tool_change);
-    #if ENABLED(TOOLCHANGE_MIGRATION_FEATURE)
-      SUBMENU(MSG_TOOL_MIGRATION, menu_toolchange_migration);
-    #endif
-  #endif
 
   #if HAS_LCD_BRIGHTNESS
     EDIT_ITEM_FAST(uint8, MSG_BRIGHTNESS, &ui.brightness, LCD_BRIGHTNESS_MIN, LCD_BRIGHTNESS_MAX, ui.refresh_brightness, true);
@@ -555,20 +339,8 @@ void menu_configuration() {
     EDIT_ITEM(uint8, MSG_SCREEN_TIMEOUT, &ui.sleep_timeout_minutes, SLEEP_TIMEOUT_MIN, SLEEP_TIMEOUT_MAX, ui.refresh_screen_timeout);
   #endif
 
-  #if ENABLED(FWRETRACT)
-    SUBMENU(MSG_RETRACT, menu_config_retract);
-  #endif
-
-  #if HAS_FILAMENT_SENSOR
-    EDIT_ITEM(bool, MSG_RUNOUT_SENSOR, &runout.enabled, runout.reset);
-  #endif
-
   #if HAS_FANCHECK
     EDIT_ITEM(bool, MSG_FANCHECK, &fan_check.enabled);
-  #endif
-
-  #if ENABLED(POWER_LOSS_RECOVERY)
-    EDIT_ITEM(bool, MSG_OUTAGE_RECOVERY, &recovery.enabled, recovery.changed);
   #endif
 
   // Preheat configurations

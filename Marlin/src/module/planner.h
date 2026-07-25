@@ -46,26 +46,8 @@
 #include "motion.h"
 #include "../gcode/queue.h"
 
-#if ENABLED(DELTA)
-  #include "delta.h"
-#elif ENABLED(POLARGRAPH)
-  #include "polargraph.h"
-#endif
-
 #if ABL_PLANAR
   #include "../libs/vector_3.h" // for matrix_3x3
-#endif
-
-#if ENABLED(FWRETRACT)
-  #include "../feature/fwretract.h"
-#endif
-
-#if ENABLED(MIXING_EXTRUDER)
-  #include "../feature/mixing.h"
-#endif
-
-#if HAS_CUTTER
-  #include "../feature/spindle_laser_types.h"
 #endif
 
 #if ENABLED(DIRECT_STEPPING)
@@ -79,14 +61,7 @@
 // Feedrate for manual moves
 #ifdef MANUAL_FEEDRATE
   constexpr xyze_feedrate_t _mf = MANUAL_FEEDRATE,
-           manual_feedrate_mm_s = LOGICAL_AXIS_ARRAY(_mf.e / 60.0f,
-                                                     _mf.x / 60.0f, _mf.y / 60.0f, _mf.z / 60.0f,
-                                                     _mf.i / 60.0f, _mf.j / 60.0f, _mf.k / 60.0f,
-                                                     _mf.u / 60.0f, _mf.v / 60.0f, _mf.w / 60.0f);
-#endif
-
-#if IS_KINEMATIC && HAS_JUNCTION_DEVIATION
-  #define HAS_DIST_MM_ARG 1
+           manual_feedrate_mm_s = LOGICAL_AXIS_ARRAY(_mf.x / 60.0f, _mf.y / 60.0f, _mf.z / 60.0f,);
 #endif
 
 /**
@@ -110,12 +85,6 @@ enum BlockFlagBit {
   // Direct stepping page
   OPTARG(DIRECT_STEPPING, BLOCK_BIT_PAGE)
 
-
-  // Sync the fan speeds from the block
-  OPTARG(LASER_SYNCHRONOUS_M106_M107, BLOCK_BIT_SYNC_FANS)
-
-  // Sync laser power from a queued block
-  OPTARG(LASER_POWER_SYNC, BLOCK_BIT_LASER_PWR)
 };
 
 /**
@@ -137,14 +106,6 @@ typedef struct {
       #if ENABLED(DIRECT_STEPPING)
         bool page:1;
       #endif
-
-      #if ENABLED(LASER_SYNCHRONOUS_M106_M107)
-        bool sync_fans:1;
-      #endif
-
-      #if ENABLED(LASER_POWER_SYNC)
-        bool sync_laser_pwr:1;
-      #endif
     };
   };
 
@@ -155,29 +116,6 @@ typedef struct {
   void set_nominal(const bool n) volatile { recalculate = true; if (n) nominal_length = true; }
 
 } block_flags_t;
-
-#if ENABLED(LASER_FEATURE)
-
-  typedef struct {
-    bool isEnabled:1;                                 // Set to engage the inline laser power output.
-    bool dir:1;
-    bool isPowered:1;                                 // Set on any parsed G1, G2, G3, or G5 powered move, cleared on G0 and G28.
-    bool isSyncPower:1;                               // Set on a M3 sync based set laser power, used to determine active trap power
-    bool Reserved:4;
-  } power_status_t;
-
-  typedef struct {
-    power_status_t status;                            // See planner settings for meaning
-    uint8_t power;                                    // Ditto; When in trapezoid mode this is nominal power
-
-    #if ENABLED(LASER_POWER_TRAP)
-      float trap_ramp_active_pwr;                     // Laser power level during active trapezoid smoothing
-      float trap_ramp_entry_incr;                     // Acceleration per step laser power increment (trap entry)
-      float trap_ramp_exit_decr;                      // Deceleration per step laser power decrement (trap exit)
-    #endif
-  } block_laser_t;
-
-#endif
 
 /**
  * struct block_t
@@ -211,11 +149,7 @@ typedef struct PlannerBlock {
   };
   uint32_t step_event_count;                // The number of step events required to complete this block
 
-  #if HAS_MULTI_EXTRUDER
-    uint8_t extruder;                       // The extruder to move (if E move)
-  #else
-    static constexpr uint8_t extruder = 0;
-  #endif
+  static constexpr uint8_t extruder = 0;
 
   #if ENABLED(MIXING_EXTRUDER)
     mixer_comp_t b_color[MIXING_STEPPERS];  // Normalized color for the mixing steppers
@@ -254,56 +188,15 @@ typedef struct PlannerBlock {
     page_idx_t page_idx;                    // Page index used for direct stepping
   #endif
 
-  #if HAS_CUTTER
-    cutter_power_t cutter_power;            // Power level for Spindle, Laser, etc.
-  #endif
-
-  #if HAS_FAN
-    uint8_t fan_speed[FAN_COUNT];
-  #endif
-
-  #if ENABLED(BARICUDA)
-    uint8_t valve_pressure, e_to_p_pressure;
-  #endif
-
   #if HAS_WIRED_LCD
     uint32_t segment_time_us;
-  #endif
-
-  #if ENABLED(POWER_LOSS_RECOVERY)
-    uint32_t sdpos;
-    xyze_pos_t start_position;
-  #endif
-
-  #if ENABLED(LASER_FEATURE)
-    block_laser_t laser;
   #endif
 
   void reset() { memset((char*)this, 0, sizeof(*this)); }
 
 } block_t;
 
-#if ANY(LIN_ADVANCE, SCARA_FEEDRATE_SCALING, GRADIENT_MIX, LCD_SHOW_E_TOTAL, POWER_LOSS_RECOVERY)
-  #define HAS_POSITION_FLOAT 1
-#endif
-
 #define BLOCK_MOD(n) ((n)&(BLOCK_BUFFER_SIZE-1))
-
-#if ENABLED(LASER_FEATURE)
-  typedef struct {
-    /**
-     * Laser status flags
-     */
-    power_status_t status;
-    /**
-     * Laser power: 0 or 255 in case of PWM-less laser,
-     * or the OCR (oscillator count register) value;
-     * Using OCR instead of raw power, because it avoids
-     * floating point operations during the move loop.
-     */
-    volatile uint8_t power;
-  } laser_state_t;
-#endif
 
 typedef struct {
    uint32_t max_acceleration_mm_per_s2[DISTINCT_AXES], // (mm/s^2) M201 XYZE
@@ -311,7 +204,6 @@ typedef struct {
       float axis_steps_per_mm[DISTINCT_AXES];   // (steps) M92 XYZE - Steps per millimeter
  feedRate_t max_feedrate_mm_s[DISTINCT_AXES];   // (mm/s) M203 XYZE - Max speeds
       float acceleration,                       // (mm/s^2) M204 S - Normal acceleration. DEFAULT ACCELERATION for all printing moves.
-            retract_acceleration,               // (mm/s^2) M204 R - Retract acceleration. Filament pull-back and push-forward while standing still in the other axes
             travel_acceleration;                // (mm/s^2) M204 T - Travel acceleration. DEFAULT ACCELERATION for all NON printing moves.
  feedRate_t min_feedrate_mm_s,                  // (mm/s) M205 S - Minimum linear feedrate
             min_travel_feedrate_mm_s;           // (mm/s) M205 T - Minimum travel feedrate
@@ -346,10 +238,6 @@ typedef struct {
   #endif
 } skew_factor_t;
 
-#if ENABLED(DISABLE_INACTIVE_EXTRUDER)
-  typedef IF<(BLOCK_BUFFER_SIZE > 64), uint16_t, uint8_t>::type last_move_t;
-#endif
-
 #if ENABLED(ARC_SUPPORT)
   #define HINTS_CURVE_RADIUS
   #define HINTS_SAFE_EXIT_SPEED
@@ -357,9 +245,6 @@ typedef struct {
 
 struct PlannerHints {
   float millimeters = 0.0;            // Move Length, if known, else 0.
-  #if ENABLED(SCARA_FEEDRATE_SCALING)
-    float inv_duration = 0.0;         // Reciprocal of the move duration, if known
-  #endif
   #if ENABLED(HINTS_CURVE_RADIUS)
     float curve_radius = 0.0;         // Radius of curvature of the motion path - to calculate cornering speed
   #else
@@ -399,37 +284,12 @@ class Planner {
     static uint8_t delay_before_delivering;         // This counter delays delivery of blocks when queue becomes empty to allow the opportunity of merging blocks
 
 
-    #if ENABLED(DISTINCT_E_FACTORS)
-      static uint8_t last_extruder;                 // Respond to extruder change
-    #endif
-
-    #if ENABLED(DIRECT_STEPPING)
+       #if ENABLED(DIRECT_STEPPING)
       static uint32_t last_page_step_rate;          // Last page step rate given
       static xyze_bool_t last_page_dir;             // Last page direction given
     #endif
 
-    #if HAS_EXTRUDERS
-      static int16_t flow_percentage[EXTRUDERS];    // Extrusion factor for each extruder
-      static float e_factor[EXTRUDERS];             // The flow percentage and volumetric multiplier combine to scale E movement
-    #endif
-
-    #if DISABLED(NO_VOLUMETRICS)
-      static float filament_size[EXTRUDERS],          // diameter of filament (in millimeters), typically around 1.75 or 2.85, 0 disables the volumetric calculations for the extruder
-                   volumetric_area_nominal,           // Nominal cross-sectional area
-                   volumetric_multiplier[EXTRUDERS];  // Reciprocal of cross-sectional area of filament (in mm^2). Pre-calculated to reduce computation in the planner
-                                                      // May be auto-adjusted by a filament width sensor
-    #endif
-
-    #if ENABLED(VOLUMETRIC_EXTRUDER_LIMIT)
-      static float volumetric_extruder_limit[EXTRUDERS],          // Maximum mm^3/sec the extruder can handle
-                   volumetric_extruder_feedrate_limit[EXTRUDERS]; // Feedrate limit (mm/s) calculated from volume limit
-    #endif
-
     static planner_settings_t settings;
-
-    #if ENABLED(LASER_FEATURE)
-      static laser_state_t laser_inline;
-    #endif
 
     static uint32_t max_acceleration_steps_per_s2[DISTINCT_AXES]; // (steps/s^2) Derived from mm_per_s2
     static float mm_per_step[DISTINCT_AXES];          // Millimeters per step
@@ -458,29 +318,14 @@ class Planner {
       static constexpr bool leveling_active = false;
     #endif
 
-    #if ENABLED(LIN_ADVANCE)
-      static float extruder_advance_K[EXTRUDERS];
-    #endif
-
     /**
      * The current position of the tool in absolute steps
      * Recalculated if any axis_steps_per_mm are changed by G-code
      */
     static xyze_long_t position;
 
-    #if HAS_POSITION_FLOAT
-      static xyze_pos_t position_float;
-    #endif
-
-    #if IS_KINEMATIC
-      static xyze_pos_t position_cart;
-    #endif
-
     static skew_factor_t skew_factor;
 
-    #if ENABLED(SD_ABORT_ON_ENDSTOP_HIT)
-      static bool abort_on_endstop_hit;
-    #endif
     #ifdef XY_FREQUENCY_LIMIT
       static int8_t xy_freq_limit_hz;         // Minimum XY frequency setting
       static float xy_freq_min_speed_factor;  // Minimum speed factor setting
@@ -518,11 +363,6 @@ class Planner {
 
     #if ENABLED(ENABLE_LEVELING_FADE_HEIGHT)
       static float last_fade_z;
-    #endif
-
-    #if ENABLED(DISABLE_INACTIVE_EXTRUDER)
-      // Counters to manage disabling inactive extruder steppers
-      static last_move_t g_uc_extruder_last_move[E_STEPPERS];
     #endif
 
     #if HAS_WIRED_LCD
@@ -565,18 +405,6 @@ class Planner {
       static void set_max_jerk(const AxisEnum, const_float_t) {}
     #endif
 
-    #if HAS_EXTRUDERS
-      FORCE_INLINE static void refresh_e_factor(const uint8_t e) {
-        e_factor[e] = flow_percentage[e] * 0.01f * TERN(NO_VOLUMETRICS, 1.0f, volumetric_multiplier[e]);
-      }
-
-      static void set_flow(const uint8_t e, const int16_t flow) {
-        flow_percentage[e] = flow;
-        refresh_e_factor(e);
-      }
-
-    #endif
-
     // Manage fans, paste pressure, etc.
     static void check_axes_activity();
 
@@ -590,47 +418,9 @@ class Planner {
       #endif
     #endif
 
-    #if ENABLED(FILAMENT_WIDTH_SENSOR)
-      void apply_filament_width_sensor(const int8_t encoded_ratio);
-
-      static float volumetric_percent(const bool vol) {
-        return 100.0f * (vol
-            ? volumetric_area_nominal / volumetric_multiplier[FILAMENT_SENSOR_EXTRUDER_NUM]
-            : volumetric_multiplier[FILAMENT_SENSOR_EXTRUDER_NUM]
-        );
-      }
-    #endif
 
     #if ENABLED(IMPROVE_HOMING_RELIABILITY)
       void enable_stall_prevention(const bool onoff);
-    #endif
-
-    #if DISABLED(NO_VOLUMETRICS)
-
-      // Update multipliers based on new diameter measurements
-      static void calculate_volumetric_multipliers();
-
-      #if ENABLED(VOLUMETRIC_EXTRUDER_LIMIT)
-        // Update pre calculated extruder feedrate limits based on volumetric values
-        static void calculate_volumetric_extruder_limit(const uint8_t e);
-        static void calculate_volumetric_extruder_limits();
-      #endif
-
-      FORCE_INLINE static void set_filament_size(const uint8_t e, const_float_t v) {
-        filament_size[e] = v;
-        if (v > 0) volumetric_area_nominal = CIRCLE_AREA(v * 0.5); //TODO: should it be per extruder
-        // make sure all extruders have some sane value for the filament size
-        LOOP_L_N(i, COUNT(filament_size))
-          if (!filament_size[i]) filament_size[i] = DEFAULT_NOMINAL_FILAMENT_DIA;
-      }
-
-    #endif
-
-    #if ENABLED(VOLUMETRIC_EXTRUDER_LIMIT)
-      FORCE_INLINE static void set_volumetric_extruder_limit(const uint8_t e, const_float_t v) {
-        volumetric_extruder_limit[e] = v;
-        calculate_volumetric_extruder_limit(e);
-      }
     #endif
 
     #if ENABLED(ENABLE_LEVELING_FADE_HEIGHT)
@@ -764,9 +554,6 @@ class Planner {
       // Wait until there are enough slots free
       while (moves_free() < count) { 
         idle(); 
-        #if TRONXY_UI
-        if(globalStop)return nullptr;
-        #endif
       }
 
       // Return the first available block
@@ -787,7 +574,6 @@ class Planner {
      * Returns true if movement was buffered, false otherwise
      */
     static bool _buffer_steps(const xyze_long_t &target
-      OPTARG(HAS_POSITION_FLOAT, const xyze_pos_t &target_float)
       OPTARG(HAS_DIST_MM_ARG, const xyze_float_t &cart_dist_mm)
       , feedRate_t fr_mm_s, const uint8_t extruder, const PlannerHints &hints
     );
@@ -809,7 +595,6 @@ class Planner {
      * @return  true if movement is acceptable, false otherwise
      */
     static bool _populate_block(block_t * const block, const xyze_long_t &target
-      OPTARG(HAS_POSITION_FLOAT, const xyze_pos_t &target_float)
       OPTARG(HAS_DIST_MM_ARG, const xyze_float_t &cart_dist_mm)
       , feedRate_t fr_mm_s, const uint8_t extruder, const PlannerHints &hints
     );
@@ -818,16 +603,9 @@ class Planner {
      * Planner::buffer_sync_block
      * Add a block to the buffer that just updates the position
      * @param sync_flag sets a condition bit to process additional items
-     * such as sync fan pwm or sync M3/M4 laser power into a queued block
+     * such as sync fan pwm into a queued block
      */
       static void buffer_sync_block(const BlockFlagBit flag=BLOCK_BIT_SYNC_POSITION);
-
-  #if IS_KINEMATIC
-    private:
-
-      // Allow do_homing_move to access internal functions, such as buffer_segment.
-      friend void do_homing_move(const AxisEnum, const float, const feedRate_t, const bool);
-  #endif
 
     /**
      * Planner::buffer_segment
@@ -884,10 +662,6 @@ class Planner {
      */
     static void set_position_mm(const xyze_pos_t &xyze);
 
-    #if HAS_EXTRUDERS
-      static void set_e_position_mm(const_float_t e);
-    #endif
-
     /**
      * Set the planner.position and individual stepper positions.
      *
@@ -911,11 +685,6 @@ class Planner {
       );
       return out;
     }
-
-    // SCARA AB axes are in degrees, not mm
-    #if IS_SCARA
-      FORCE_INLINE static float get_axis_position_degrees(const AxisEnum axis) { return get_axis_position_mm(axis); }
-    #endif
 
     // Called to force a quick stop of the machine (for example, when
     // a Full Shutdown is required, or when endstops are hit)

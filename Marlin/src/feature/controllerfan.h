@@ -49,30 +49,25 @@ static constexpr controllerFan_settings_t controllerFan_defaults = {
 
 #if ENABLED(USE_CONTROLLER_FAN)
 
-class ControllerFan {
-  public:
-    static uint8_t speed;
-    static void set_fan_speed(const uint8_t s);
+  class ControllerFan {
+    public:
+      static uint8_t speed;
+      static void set_fan_speed(const uint8_t s);
 
-  public:
-    #if ENABLED(CONTROLLER_FAN_EDITABLE)
-      static controllerFan_settings_t settings;
-    #else
-      static const controllerFan_settings_t &settings;
-    #endif
-    #if !TRONXY_UI
-    static bool state() { return speed > 0; }
-    #endif
-    static void init() { reset(); }
-    static void reset() { TERN_(CONTROLLER_FAN_EDITABLE, settings = controllerFan_defaults); }
-    static void setup();
-    static void update();
-};
+    public:
+      #if ENABLED(CONTROLLER_FAN_EDITABLE)
+        static controllerFan_settings_t settings;
+      #else
+        static const controllerFan_settings_t &settings;
+      #endif
+      static bool state() { return speed > 0; }
+      static void init() { reset(); }
+      static void reset() { TERN_(CONTROLLER_FAN_EDITABLE, settings = controllerFan_defaults); }
+      static void setup();
+      static void update();
+  };
 
-extern ControllerFan controllerFan;
-#if TRONXY_UI
-bool controllerFanState(void);
-#endif
-void controllerFanChange(uint8_t s);
+  extern ControllerFan controllerFan;
+  void controllerFanChange(uint8_t s);
 
 #endif

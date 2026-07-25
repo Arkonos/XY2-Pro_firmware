@@ -22,7 +22,7 @@
 #pragma once
 #include "HAL.h"
 #include <SPI.h>
-#if !TRONXY_UI
+
 extern "C" {
   #include <utility/spi_com.h>
 }
@@ -104,4 +104,3 @@ private:
   pin_t _sckPin;
   pin_t _ssPin;
 };
-#endif

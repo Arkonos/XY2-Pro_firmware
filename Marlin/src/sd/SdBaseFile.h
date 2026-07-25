@@ -298,11 +298,7 @@ class SdBaseFile {
   bool printName();
   int16_t read();
   int16_t read(void *buf, uint16_t nbyte);
-  #if TRONXY_UI
-  int8_t readDir(dir_t *dir, uint16_t *longFilename);
-  #else
   int8_t readDir(dir_t *dir, char *longFilename);
-  #endif
   static bool remove(SdBaseFile *dirFile, const char *path);
   bool remove();
 

@@ -28,10 +28,6 @@
 #include "../../module/planner.h"
 #include "../../module/stepper.h" // for various
 
-#if HAS_MULTI_HOTEND
-  #include "../../module/tool_change.h"
-#endif
-
 #if HAS_LEVELING
   #include "../../feature/bedlevel/bedlevel.h"
 #endif
@@ -46,10 +42,6 @@
 
 #include "../../module/probe.h"
 
-#if ENABLED(BLTOUCH)
-  #include "../../feature/bltouch.h"
-#endif
-
 #include "../../lcd/marlinui.h"
 
 #if ENABLED(EXTENSIBLE_UI)
@@ -60,14 +52,9 @@
   #include "../../lcd/e3v2/proui/dwin.h"
 #endif
 
-#if ENABLED(LASER_FEATURE)
-  #include "../../feature/spindle_laser.h"
-#endif
-
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../core/debug_out.h"
 
-#include "../../feature/powerloss.h"
 #include "../../feature/babystep.h"
 
 #if ENABLED(QUICK_HOME)
@@ -142,9 +129,6 @@
 
       if (DEBUGGING(LEVELING)) DEBUG_POS("home_z_safely", destination);
 
-      // Free the active extruder for movement
-      TERN_(DUAL_X_CARRIAGE, idex_set_parked(false));
-
       TERN_(SENSORLESS_HOMING, safe_delay(500)); // Short delay needed to settle
 
       do_blocking_move_to_xy(destination);
@@ -197,9 +181,9 @@
  *
  *  L<bool>   Force leveling state ON (if possible) or OFF after homing (Requires RESTORE_LEVELING_AFTER_G28 or ENABLE_LEVELING_AFTER_G28)
  *  O         Home only if the position is not known and trusted
- *  R<linear> Raise by n mm/inches before homing
+ *  R<linear> Raise by n mm before homing
  *
- * Cartesian/SCARA parameters
+ * Cartesian parameters
  *
  *  X   Home to the X endstop
  *  Y   Home to the Y endstop
@@ -210,20 +194,6 @@ void GcodeSuite::G28() {
   if (DEBUGGING(LEVELING)) log_machine_info();
 
   TERN_(BD_SENSOR, bdl.config_state = 0);
-
-  /**
-   * Set the laser power to false to stop the planner from processing the current power setting.
-   */
-  #if ENABLED(LASER_FEATURE)
-    planner.laser_inline.status.isPowered = false;
-  #endif
-
-  #if ENABLED(DUAL_X_CARRIAGE)
-    #if !TRONXY_UI //这里不能恢复复制的标志,否则复位后,再移动会撞头
-    bool IDEX_saved_duplication_state = extruder_duplication_enabled;
-    #endif
-    DualXMode IDEX_saved_mode = dual_x_carriage_mode;
-  #endif
 
   #if ENABLED(MARLIN_DEV_MODE)
     if (parser.seen_test('S')) {
@@ -271,7 +241,7 @@ void GcodeSuite::G28() {
   reset_stepper_timeout();
 
   #define HAS_CURRENT_HOME(N) (defined(N##_CURRENT_HOME) && N##_CURRENT_HOME != N##_CURRENT)
-  #if HAS_CURRENT_HOME(X) || HAS_CURRENT_HOME(X2) || HAS_CURRENT_HOME(Y) || HAS_CURRENT_HOME(Y2) || (ENABLED(DELTA) && HAS_CURRENT_HOME(Z)) || HAS_CURRENT_HOME(I) || HAS_CURRENT_HOME(J) || HAS_CURRENT_HOME(K) || HAS_CURRENT_HOME(U) || HAS_CURRENT_HOME(V) || HAS_CURRENT_HOME(W)
+  #if HAS_CURRENT_HOME(X) || HAS_CURRENT_HOME(X2) || HAS_CURRENT_HOME(Y) || HAS_CURRENT_HOME(Y2) || HAS_CURRENT_HOME(I) || HAS_CURRENT_HOME(J) || HAS_CURRENT_HOME(K) || HAS_CURRENT_HOME(U) || HAS_CURRENT_HOME(V) || HAS_CURRENT_HOME(W)
     #define HAS_HOMING_CURRENT 1
   #endif
 
@@ -298,11 +268,6 @@ void GcodeSuite::G28() {
       const int16_t tmc_save_current_Y2 = stepperY2.getMilliamps();
       stepperY2.rms_current(Y2_CURRENT_HOME);
       if (DEBUGGING(LEVELING)) debug_current(F(STR_Y2), tmc_save_current_Y2, Y2_CURRENT_HOME);
-    #endif
-    #if HAS_CURRENT_HOME(Z) && ENABLED(DELTA)
-      const int16_t tmc_save_current_Z = stepperZ.getMilliamps();
-      stepperZ.rms_current(Z_CURRENT_HOME);
-      if (DEBUGGING(LEVELING)) debug_current(F(STR_Z), tmc_save_current_Z, Z_CURRENT_HOME);
     #endif
     #if HAS_CURRENT_HOME(I)
       const int16_t tmc_save_current_I = stepperI.getMilliamps();
@@ -343,318 +308,150 @@ void GcodeSuite::G28() {
     motion_state_t saved_motion_state = begin_slow_homing();
   #endif
 
-  #if TRONXY_UI
-  if(my_print_status == PRINT_RUNNING)my_print_status = PRINT_RUNNING_HOME;
-  #endif
-
-  // Always home with tool 0 active
-  #if HAS_MULTI_HOTEND
-    #if DISABLED(DELTA) || ENABLED(DELTA_HOME_TO_SAFE_ZONE)
-      const uint8_t old_tool_index = active_extruder;
-    #endif
-    // PARKING_EXTRUDER homing requires different handling of movement / solenoid activation, depending on the side of homing
-    #if ENABLED(PARKING_EXTRUDER)
-      const bool pe_final_change_must_unpark = parking_extruder_unpark_after_homing(old_tool_index, X_HOME_DIR + 1 == old_tool_index * 2);
-    #endif
-    tool_change(0, true);
-  #endif
-
-  TERN_(HAS_DUPLICATION_MODE, set_duplication_enabled(false));
-
   remember_feedrate_scaling_off();
 
   endstops.enable(true); // Enable endstops for next homing move
+  #define _UNSAFE(A) (homeZ && TERN0(Z_SAFE_HOMING, axes_should_home(_BV(A##_AXIS))))
 
-  #if ENABLED(DELTA)
+  const bool homeZ = TERN0(HAS_Z_AXIS, parser.seen_test('Z')),
+              NUM_AXIS_LIST(              // Other axes should be homed before Z safe-homing
+                needX = _UNSAFE(X), needY = _UNSAFE(Y), needZ = false, // UNUSED
+                needI = _UNSAFE(I), needJ = _UNSAFE(J), needK = _UNSAFE(K),
+                needU = _UNSAFE(U), needV = _UNSAFE(V), needW = _UNSAFE(W)
+              ),
+              NUM_AXIS_LIST(              // Home each axis if needed or flagged
+                homeX = needX || parser.seen_test('X'),
+                homeY = needY || parser.seen_test('Y'),
+                homeZZ = homeZ,
+              ),
+              home_all = NUM_AXIS_GANG(   // Home-all if all or none are flagged
+                  homeX == homeX, && homeY == homeX, && homeZ == homeX,
+              ),
+              NUM_AXIS_LIST(
+                doX = home_all || homeX, doY = home_all || homeY, doZ = home_all || homeZ
+              );
 
-    constexpr bool doZ = true; // for NANODLP_Z_SYNC if your DLP is on a DELTA
-
-    home_delta();
-
-    TERN_(IMPROVE_HOMING_RELIABILITY, end_slow_homing(saved_motion_state));
-
-  #elif ENABLED(AXEL_TPARA)
-
-    constexpr bool doZ = true; // for NANODLP_Z_SYNC if your DLP is on a TPARA
-
-    home_TPARA();
-
+  #if HAS_Z_AXIS
+    UNUSED(needZ); UNUSED(homeZZ);
   #else
-
-    #define _UNSAFE(A) (homeZ && TERN0(Z_SAFE_HOMING, axes_should_home(_BV(A##_AXIS))))
-
-    const bool homeZ = TERN0(HAS_Z_AXIS, parser.seen_test('Z')),
-               NUM_AXIS_LIST(              // Other axes should be homed before Z safe-homing
-                 needX = _UNSAFE(X), needY = _UNSAFE(Y), needZ = false, // UNUSED
-                 needI = _UNSAFE(I), needJ = _UNSAFE(J), needK = _UNSAFE(K),
-                 needU = _UNSAFE(U), needV = _UNSAFE(V), needW = _UNSAFE(W)
-               ),
-               NUM_AXIS_LIST(              // Home each axis if needed or flagged
-                 homeX = needX || parser.seen_test('X'),
-                 homeY = needY || parser.seen_test('Y'),
-                 homeZZ = homeZ,
-                 homeI = needI || parser.seen_test(AXIS4_NAME), homeJ = needJ || parser.seen_test(AXIS5_NAME),
-                 homeK = needK || parser.seen_test(AXIS6_NAME), homeU = needU || parser.seen_test(AXIS7_NAME),
-                 homeV = needV || parser.seen_test(AXIS8_NAME), homeW = needW || parser.seen_test(AXIS9_NAME)
-               ),
-               home_all = NUM_AXIS_GANG(   // Home-all if all or none are flagged
-                    homeX == homeX, && homeY == homeX, && homeZ == homeX,
-                 && homeI == homeX, && homeJ == homeX, && homeK == homeX,
-                 && homeU == homeX, && homeV == homeX, && homeW == homeX
-               ),
-               NUM_AXIS_LIST(
-                 doX = home_all || homeX, doY = home_all || homeY, doZ = home_all || homeZ,
-                 doI = home_all || homeI, doJ = home_all || homeJ, doK = home_all || homeK,
-                 doU = home_all || homeU, doV = home_all || homeV, doW = home_all || homeW
-               );
-
-    #if HAS_Z_AXIS
-      UNUSED(needZ); UNUSED(homeZZ);
-    #else
-      constexpr bool doZ = false;
-    #endif
-    
-    #if USE_Z_LIMIT_PROBE_0 && ENABLED(HOME_Z_FIRST)
-    if(doZ) {
-      if((READ(Z_MAX_PIN) != Z_MAX_ENDSTOP_INVERTING
-      TERN_(Z_MULTI_ENDSTOPS,|| READ(Z2_MAX_PIN) != Z2_MAX_ENDSTOP_INVERTING))
-      && READ(Z_MIN_PROBE_PIN) != Z_MIN_PROBE_ENDSTOP_INVERTING) { //限位和探头都触发,这显然不合理
-        #if TRONXY_UI
-        popupZLimitError();
-        #endif
-        SERIAL_ECHOLNPGM("Homing z error for the limit");
-        endstops.not_homing();
-        return;
-      }
-      int t = 0;
-      while((READ(Z_MAX_PIN) != Z_MAX_ENDSTOP_INVERTING
-      TERN_(Z_MULTI_ENDSTOPS,|| READ(Z2_MAX_PIN) != Z2_MAX_ENDSTOP_INVERTING)) //限位触发,上抬
-      && t++ < 5) {
-        current_position.z -= 2;
-        line_to_current_position(2.0);
-        planner.synchronize();
-      }
-      if(t >= 5) { //传感器异常
-        #if TRONXY_UI
-        popupZLimitError();
-        #endif
-        SERIAL_ECHOLNPGM("Homing z error for the limit");
-        endstops.not_homing();
-        return;
-      }
-      homeaxis(Z_AXIS);
+    constexpr bool doZ = false;
+  #endif
+  
+  #if USE_Z_LIMIT_PROBE_0 && ENABLED(HOME_Z_FIRST)
+  if(doZ) {
+    if((READ(Z_MAX_PIN) != Z_MAX_ENDSTOP_INVERTING
+    TERN_(Z_MULTI_ENDSTOPS,|| READ(Z2_MAX_PIN) != Z2_MAX_ENDSTOP_INVERTING))
+    && READ(Z_MIN_PROBE_PIN) != Z_MIN_PROBE_ENDSTOP_INVERTING) { //限位和探头都触发,这显然不合理
+      SERIAL_ECHOLNPGM("Homing z error for the limit");
+      endstops.not_homing();
+      return;
     }
-    #else
-    TERN_(HOME_Z_FIRST, if (doZ) homeaxis(Z_AXIS));
-    #endif
-
-    const bool seenR = parser.seenval('R');
-    const float z_homing_height = seenR ? parser.value_linear_units() : Z_HOMING_HEIGHT;
-
-    if (z_homing_height && (seenR || NUM_AXIS_GANG(doX, || doY, || TERN0(Z_SAFE_HOMING, doZ), || doI, || doJ, || doK, || doU, || doV, || doW))) {
-      // Raise Z before homing any other axes and z is not already high enough (never lower z)
-      if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Raise Z (before homing) by ", z_homing_height);
-      do_z_clearance(z_homing_height);
-      TERN_(BLTOUCH, bltouch.init());
+    int t = 0;
+    while((READ(Z_MAX_PIN) != Z_MAX_ENDSTOP_INVERTING
+    TERN_(Z_MULTI_ENDSTOPS,|| READ(Z2_MAX_PIN) != Z2_MAX_ENDSTOP_INVERTING)) //限位触发,上抬
+    && t++ < 5) {
+      current_position.z -= 2;
+      line_to_current_position(2.0);
+      planner.synchronize();
     }
-
-    // Diagonal move first if both are homing
-    TERN_(QUICK_HOME, if (doX && doY) quick_home_xy());
-
-    // Home Y (before X)
-    if (ENABLED(HOME_Y_BEFORE_X) && (doY || TERN0(CODEPENDENT_XY_HOMING, doX)))
-      homeaxis(Y_AXIS);
-
-    // Home X
-    if (doX || (doY && ENABLED(CODEPENDENT_XY_HOMING) && DISABLED(HOME_Y_BEFORE_X))) {
-
-      #if ENABLED(DUAL_X_CARRIAGE)
-
-        // Always home the 2nd (right) extruder first
-        active_extruder = 1;
-        homeaxis(X_AXIS);
-        
-        // Remember this extruder's position for later tool change
-        inactive_extruder_x = current_position.x;
-
-        // Home the 1st (left) extruder
-        active_extruder = 0;
-        homeaxis(X_AXIS);
-
-        // Consider the active extruder to be in its "parked" position
-        idex_set_parked();
-
-      #else
-
-        homeaxis(X_AXIS);
-
-      #endif
+    if(t >= 5) { //传感器异常
+      SERIAL_ECHOLNPGM("Homing z error for the limit");
+      endstops.not_homing();
+      return;
     }
-
-    #if BOTH(FOAMCUTTER_XYUV, HAS_I_AXIS)
-      // Home I (after X)
-      if (doI) homeaxis(I_AXIS);
-    #endif
-
-    // Home Y (after X)
-    if (DISABLED(HOME_Y_BEFORE_X) && doY)
-      homeaxis(Y_AXIS);
-
-    #if BOTH(FOAMCUTTER_XYUV, HAS_J_AXIS)
-      // Home J (after Y)
-      if (doJ) homeaxis(J_AXIS);
-    #endif
-
-    TERN_(IMPROVE_HOMING_RELIABILITY, end_slow_homing(saved_motion_state));
-
-    #if ENABLED(FOAMCUTTER_XYUV)
-      // skip homing of unused Z axis for foamcutters
-      if (doZ) set_axis_is_at_home(Z_AXIS);
-    #else
-      // Home Z last if homing towards the bed
-      #if HAS_Z_AXIS && DISABLED(HOME_Z_FIRST)
-        if (doZ) {
-          #if EITHER(Z_MULTI_ENDSTOPS, Z_STEPPER_AUTO_ALIGN)
-            stepper.set_all_z_lock(false);
-            stepper.set_separate_multi_axis(false);
-          #endif
-
-          #if ENABLED(Z_SAFE_HOMING)
-            if (TERN1(POWER_LOSS_RECOVERY, !parser.seen_test('H'))) home_z_safely(); else homeaxis(Z_AXIS);
-          #else
-            homeaxis(Z_AXIS);
-          #endif
-          probe.move_z_after_homing();
-        }
-      #endif
-    #if USE_Z_LIMIT_PROBE_0 /*上面只是找了Z限位,现在要找probe零点*/
-      #if Z_HOME_DIR > 0 //大端复位
-        uint8_t home_probe_z = parser.intval('S',1);
-        if(doZ && home_probe_z && !probe.deploy()) { //在断电续打的时候,不能探测Z高度
-          sync_plan_position();
-          float zpos = current_position.z; //记录当前高度
-          #if ENABLED(Z_SAFE_HOMING)
-            constexpr xy_float_t safe_homing_xy = { Z_SAFE_HOMING_X_POINT, Z_SAFE_HOMING_Y_POINT };
-            #if HAS_HOME_OFFSET
-              xy_float_t okay_homing_xy = safe_homing_xy;
-              okay_homing_xy -= home_offset;
-            #else
-              constexpr xy_float_t okay_homing_xy = safe_homing_xy;
-            #endif
-            destination.set(okay_homing_xy, current_position.z);
-            destination -= probe.offset_xy;
-            if (position_is_reachable(destination)) {
-              if (DEBUGGING(LEVELING)) DEBUG_POS("home_z_safely", destination);
-              // Free the active extruder for movement
-              TERN_(DUAL_X_CARRIAGE, idex_set_parked(false));
-              TERN_(SENSORLESS_HOMING, safe_delay(500)); // Short delay needed to settle
-              do_blocking_move_to_xy(destination);
-            }
-          #endif
-          if (!probe.deploy()) { 
-            probe.probe_down_to_z(-(soft_endstop.max.z * 1.5),MMM_TO_MMS(Z_PROBE_FEEDRATE_FAST));//probe探测Z直到触发probe,结束后更新current_position
-            float bump = _MAX(Z_CLEARANCE_BETWEEN_PROBES, home_bump_mm(Z_AXIS));
-            if (bump) {
-              current_position.z += bump;
-              line_to_current_position();
-              bump *= 1.5;
-              probe.probe_down_to_z(-bump,MMM_TO_MMS(Z_PROBE_FEEDRATE_SLOW));
-            }
-            probe.stow();
-            PrintJobRecovery::info.zBottomPos = zpos - current_position.z;
-            // 探测点停下的Z位置为0-probe-offset.z
-            #if TRONXY_UI
-            PrintJobRecovery::info.zBottomPos += -Probe_Offset.z;
-            current_position.z = -Probe_Offset.z;
-            #else
-            PrintJobRecovery::info.zBottomPos += -probe.offset.z;
-            current_position.z = -probe.offset.z;
-            #endif
-            destination[Z_AXIS] = current_position[Z_AXIS];
-          }
-          #if HAS_Z_AXIS && DISABLED(HOME_Z_FIRST)
-          probe.move_z_after_homing();
-          #endif
-        }
-      #else //小端复位
-        if (doZ && !probe.deploy()) {
-          probe.probe_down_to_z(-(soft_endstop.max.z * 1.5),MMM_TO_MMS(Z_PROBE_FEEDRATE_FAST));
-          float bump = _MAX(Z_CLEARANCE_BETWEEN_PROBES, home_bump_mm(Z_AXIS));
-          if (bump) {
-            current_position.z += bump;
-            line_to_current_position();
-            bump *= 1.5;
-            probe.probe_down_to_z(-bump,MMM_TO_MMS(Z_PROBE_FEEDRATE_SLOW));
-          }
-          probe.stow();
-          #if TRONXY_UI
-          current_position.z = -Probe_Offset.z;
-          #else
-          current_position.z = -probe.offset.z;
-          #endif
-          destination[Z_AXIS] = current_position[Z_AXIS];
-          #if HAS_Z_AXIS && DISABLED(HOME_Z_FIRST)
-          probe.move_z_after_homing();
-          #endif
-        }
-      #endif
-    #endif
-
-      SECONDARY_AXIS_CODE(
-        #if TAOLI_SERIAL
-        if (doI) set_axis_is_at_home(I_AXIS),
-        #else
-        if (doI) homeaxis(I_AXIS),
-        #endif
-        if (doJ) homeaxis(J_AXIS),
-        if (doK) homeaxis(K_AXIS),
-        if (doU) homeaxis(U_AXIS),
-        if (doV) homeaxis(V_AXIS),
-        if (doW) homeaxis(W_AXIS)
-      );
-    #endif
-
-    sync_plan_position();
-
+    homeaxis(Z_AXIS);
+  }
+  #else
+  TERN_(HOME_Z_FIRST, if (doZ) homeaxis(Z_AXIS));
   #endif
 
-  /**
-   * Preserve DXC mode across a G28 for IDEX printers in DXC_DUPLICATION_MODE.
-   * This is important because it lets a user use the LCD Panel to set an IDEX Duplication mode, and
-   * then print a standard GCode file that contains a single print that does a G28 and has no other
-   * IDEX specific commands in it.
-   */
-  #if ENABLED(DUAL_X_CARRIAGE)
+  const bool seenR = parser.seenval('R');
+  const float z_homing_height = seenR ? parser.value_linear_units() : Z_HOMING_HEIGHT;
 
-    if (TRONXY_UI || idex_is_duplicating()) {
+  if (z_homing_height && (seenR || NUM_AXIS_GANG(doX, || doY, || TERN0(Z_SAFE_HOMING, doZ), || doI, || doJ, || doK, || doU, || doV, || doW))) {
+    // Raise Z before homing any other axes and z is not already high enough (never lower z)
+    if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Raise Z (before homing) by ", z_homing_height);
+    do_z_clearance(z_homing_height);
+  }
 
-      TERN_(IMPROVE_HOMING_RELIABILITY, saved_motion_state = begin_slow_homing());
+  // Diagonal move first if both are homing
+  TERN_(QUICK_HOME, if (doX && doY) quick_home_xy());
 
-      // Always home the 2nd (right) extruder first
-      active_extruder = 1;
-      homeaxis(X_AXIS);
+  // Home Y (before X)
+  if (ENABLED(HOME_Y_BEFORE_X) && (doY || TERN0(CODEPENDENT_XY_HOMING, doX)))
+    homeaxis(Y_AXIS);
 
-      // Remember this extruder's position for later tool change
-      inactive_extruder_x = current_position.x;
+  // Home X
+  if (doX || (doY && ENABLED(CODEPENDENT_XY_HOMING) && DISABLED(HOME_Y_BEFORE_X))) {
+    homeaxis(X_AXIS);
+  }
 
-      // Home the 1st (left) extruder
-      active_extruder = 0;
-      homeaxis(X_AXIS);
+  // Home Y (after X)
+  if (DISABLED(HOME_Y_BEFORE_X) && doY)
+    homeaxis(Y_AXIS);
 
-      // Consider the active extruder to be parked
-      idex_set_parked();
+  TERN_(IMPROVE_HOMING_RELIABILITY, end_slow_homing(saved_motion_state));
 
-      dual_x_carriage_mode = IDEX_saved_mode;
-      #if TRONXY_UI //这里不能恢复复制的标志,否则复位后,再移动会撞头
-      stepper.set_directions();
-      #else
-      set_duplication_enabled(IDEX_saved_duplication_state);
+  // Home Z last if homing towards the bed
+  #if HAS_Z_AXIS && DISABLED(HOME_Z_FIRST)
+    if (doZ) {
+      #if EITHER(Z_MULTI_ENDSTOPS, Z_STEPPER_AUTO_ALIGN)
+        stepper.set_all_z_lock(false);
+        stepper.set_separate_multi_axis(false);
       #endif
 
-      TERN_(IMPROVE_HOMING_RELIABILITY, end_slow_homing(saved_motion_state));
+      homeaxis(Z_AXIS);
+      probe.move_z_after_homing();
     }
+  #if USE_Z_LIMIT_PROBE_0 /*上面只是找了Z限位,现在要找probe零点*/
+    #if Z_HOME_DIR > 0 //大端复位
+      uint8_t home_probe_z = parser.intval('S',1);
+      if(doZ && home_probe_z && !probe.deploy()) { //在断电续打的时候,不能探测Z高度
+        sync_plan_position();
+        float zpos = current_position.z; //记录当前高度
+        #if ENABLED(Z_SAFE_HOMING)
+          constexpr xy_float_t safe_homing_xy = { Z_SAFE_HOMING_X_POINT, Z_SAFE_HOMING_Y_POINT };
+          #if HAS_HOME_OFFSET
+            xy_float_t okay_homing_xy = safe_homing_xy;
+            okay_homing_xy -= home_offset;
+          #else
+            constexpr xy_float_t okay_homing_xy = safe_homing_xy;
+          #endif
+          destination.set(okay_homing_xy, current_position.z);
+          destination -= probe.offset_xy;
+          if (position_is_reachable(destination)) {
+            if (DEBUGGING(LEVELING)) DEBUG_POS("home_z_safely", destination);
+            TERN_(SENSORLESS_HOMING, safe_delay(500)); // Short delay needed to settle
+            do_blocking_move_to_xy(destination);
+          }
+        #endif
+        #if HAS_Z_AXIS && DISABLED(HOME_Z_FIRST)
+        probe.move_z_after_homing();
+        #endif
+      }
+    #else //小端复位
+      if (doZ && !probe.deploy()) {
+        probe.probe_down_to_z(-(soft_endstop.max.z * 1.5),MMM_TO_MMS(Z_PROBE_FEEDRATE_FAST));
+        float bump = _MAX(Z_CLEARANCE_BETWEEN_PROBES, home_bump_mm(Z_AXIS));
+        if (bump) {
+          current_position.z += bump;
+          line_to_current_position();
+          bump *= 1.5;
+          probe.probe_down_to_z(-bump,MMM_TO_MMS(Z_PROBE_FEEDRATE_SLOW));
+        }
+        probe.stow();
+        current_position.z = -probe.offset.z;
+        destination[Z_AXIS] = current_position[Z_AXIS];
+        #if HAS_Z_AXIS && DISABLED(HOME_Z_FIRST)
+        probe.move_z_after_homing();
+        #endif
+      }
+    #endif
+  #endif
+  #endif
 
-  #endif // DUAL_X_CARRIAGE
+  sync_plan_position();
+
 
   endstops.not_homing();
 
@@ -668,58 +465,20 @@ void GcodeSuite::G28() {
 
   restore_feedrate_and_scaling();
 
-  // Restore the active tool after homing
-  #if HAS_MULTI_HOTEND && (DISABLED(DELTA) || ENABLED(DELTA_HOME_TO_SAFE_ZONE))
-    #if TRONXY_UI
-    tool_change(old_tool_index, TERN(PARKING_EXTRUDER, !pe_final_change_must_unpark, ENABLED(DUAL_X_CARRIAGE)));
-    #else
-    tool_change(old_tool_index, TERN(PARKING_EXTRUDER, !pe_final_change_must_unpark, DISABLED(DUAL_X_CARRIAGE)));   // Do move if one of these
-    #endif
-  #endif
 
   #if HAS_HOMING_CURRENT
     if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Restore driver current...");
     #if HAS_CURRENT_HOME(X)
       stepperX.rms_current(tmc_save_current_X);
     #endif
-    #if HAS_CURRENT_HOME(X2)
-      stepperX2.rms_current(tmc_save_current_X2);
-    #endif
     #if HAS_CURRENT_HOME(Y)
       stepperY.rms_current(tmc_save_current_Y);
-    #endif
-    #if HAS_CURRENT_HOME(Y2)
-      stepperY2.rms_current(tmc_save_current_Y2);
-    #endif
-    #if HAS_CURRENT_HOME(Z) && ENABLED(DELTA)
-      stepperZ.rms_current(tmc_save_current_Z);
-    #endif
-    #if HAS_CURRENT_HOME(I)
-      stepperI.rms_current(tmc_save_current_I);
-    #endif
-    #if HAS_CURRENT_HOME(J)
-      stepperJ.rms_current(tmc_save_current_J);
-    #endif
-    #if HAS_CURRENT_HOME(K)
-      stepperK.rms_current(tmc_save_current_K);
-    #endif
-    #if HAS_CURRENT_HOME(U)
-      stepperU.rms_current(tmc_save_current_U);
-    #endif
-    #if HAS_CURRENT_HOME(V)
-      stepperV.rms_current(tmc_save_current_V);
-    #endif
-    #if HAS_CURRENT_HOME(W)
-      stepperW.rms_current(tmc_save_current_W);
     #endif
     #if SENSORLESS_STALLGUARD_DELAY
       safe_delay(SENSORLESS_STALLGUARD_DELAY); // Short delay needed to settle
     #endif
   #endif // HAS_HOMING_CURRENT
-  
-  #if !TRONXY_UI
   ui.refresh();
-  #endif
 
   TERN_(HAS_DWIN_E3V2_BASIC, DWIN_HomingDone());
   TERN_(EXTENSIBLE_UI, ExtUI::onHomingDone());
@@ -730,15 +489,5 @@ void GcodeSuite::G28() {
     SERIAL_ECHOLNPGM(STR_Z_MOVE_COMP);
 
   TERN_(FULL_REPORT_TO_HOST_FEATURE, set_and_report_grblstate(old_grblstate));
-  #if TRONXY_UI
-  if(my_print_status == PRINT_RUNNING_HOME) {
-    my_print_status = PRINT_RUNNING;
-    if(enabled_taoli)WRITE(pin_air,TAOLI_AIR_OPEN);
-    #if ENABLED(BABYSTEPPING)
-    int t = babystep.steps[BS_AXIS_IND(Z_AXIS)] = babystep.accum; //承继上次打印的babystep
-    while(t != 0)t = babystep.steps[BS_AXIS_IND(Z_AXIS)];
-    #endif
-  }
-  #endif
 
 }

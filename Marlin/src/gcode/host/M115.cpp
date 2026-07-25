@@ -64,7 +64,6 @@ void GcodeSuite::M115() {
     "SOURCE_CODE_URL:" SOURCE_CODE_URL " "
     "PROTOCOL_VERSION:" PROTOCOL_VERSION " "
     "MACHINE_TYPE:" MACHINE_NAME " "
-    "EXTRUDER_COUNT:" STRINGIFY(EXTRUDERS) " "
     #if NUM_AXES != XYZ
       "AXIS_COUNT:" STRINGIFY(NUM_AXES) " "
     #endif
@@ -87,15 +86,6 @@ void GcodeSuite::M115() {
     // SERIAL_XON_XOFF
     cap_line(F("SERIAL_XON_XOFF"), ENABLED(SERIAL_XON_XOFF));
 
-    // BINARY_FILE_TRANSFER (M28 B1)
-    cap_line(F("BINARY_FILE_TRANSFER"), ENABLED(BINARY_FILE_TRANSFER)); // TODO: Use SERIAL_IMPL.has_feature(port, SerialFeature::BinaryFileTransfer) once implemented
-
-    // EEPROM (M500, M501)
-    cap_line(F("EEPROM"), ENABLED(EEPROM_SETTINGS));
-
-    // Volumetric Extrusion (M200)
-    cap_line(F("VOLUMETRIC"), DISABLED(NO_VOLUMETRICS));
-
     // AUTOREPORT_POS (M154)
     cap_line(F("AUTOREPORT_POS"), ENABLED(AUTO_REPORT_POSITION));
 
@@ -105,23 +95,14 @@ void GcodeSuite::M115() {
     // PROGRESS (M530 S L, M531 <file>, M532 X L)
     cap_line(F("PROGRESS"));
 
-    // Print Job timer M75, M76, M77
-    cap_line(F("PRINT_JOB"), true);
-
     // AUTOLEVEL (G29)
     cap_line(F("AUTOLEVEL"), ENABLED(HAS_AUTOLEVEL));
-
-    // RUNOUT (M412, M600)
-    cap_line(F("RUNOUT"), ENABLED(FILAMENT_RUNOUT_SENSOR));
 
     // Z_PROBE (G30)
     cap_line(F("Z_PROBE"), ENABLED(HAS_BED_PROBE));
 
     // MESH_REPORT (M420 V)
     cap_line(F("LEVELING_DATA"), ENABLED(HAS_LEVELING));
-
-    // BUILD_PERCENT (M73)
-    cap_line(F("BUILD_PERCENT"), ENABLED(LCD_SET_PROGRESS_MANUALLY));
 
     // SOFTWARE_POWER (M80, M81)
     cap_line(F("SOFTWARE_POWER"), ENABLED(PSU_CONTROL));
@@ -139,35 +120,6 @@ void GcodeSuite::M115() {
     // PROMPT SUPPORT (M876)
     cap_line(F("PROMPT_SUPPORT"), ENABLED(HOST_PROMPT_SUPPORT));
 
-    // SDCARD (M20, M23, M24, etc.)
-    cap_line(F("SDCARD"), ENABLED(SDSUPPORT));
-
-    // MULTI_VOLUME (M21 S/M21 U)
-    #if ENABLED(SDSUPPORT)
-      cap_line(F("MULTI_VOLUME"), ENABLED(MULTI_VOLUME));
-    #endif
-
-    // REPEAT (M808)
-    cap_line(F("REPEAT"), ENABLED(GCODE_REPEAT_MARKERS));
-
-    // SD_WRITE (M928, M28, M29)
-    cap_line(F("SD_WRITE"), ENABLED(SDSUPPORT) && DISABLED(SDCARD_READONLY));
-
-    // AUTOREPORT_SD_STATUS (M27 extension)
-    cap_line(F("AUTOREPORT_SD_STATUS"), ENABLED(AUTO_REPORT_SD_STATUS));
-
-    // LONG_FILENAME_HOST_SUPPORT (M33)
-    cap_line(F("LONG_FILENAME"), ENABLED(LONG_FILENAME_HOST_SUPPORT));
-
-    // LONG_FILENAME_WRITE_SUPPORT (M23, M28, M30...)
-    cap_line(F("LFN_WRITE"), ENABLED(LONG_FILENAME_WRITE_SUPPORT));
-
-    // CUSTOM_FIRMWARE_UPLOAD (M20 F)
-    cap_line(F("CUSTOM_FIRMWARE_UPLOAD"), ENABLED(CUSTOM_FIRMWARE_UPLOAD));
-
-    // EXTENDED_M20 (M20 L)
-    cap_line(F("EXTENDED_M20"), ENABLED(LONG_FILENAME_HOST_SUPPORT));
-
     // THERMAL_PROTECTION
     cap_line(F("THERMAL_PROTECTION"), ENABLED(THERMALLY_SAFE));
 
@@ -179,12 +131,6 @@ void GcodeSuite::M115() {
 
     // BABYSTEPPING (M290)
     cap_line(F("BABYSTEPPING"), ENABLED(BABYSTEPPING));
-
-    // CHAMBER_TEMPERATURE (M141, M191)
-    cap_line(F("CHAMBER_TEMPERATURE"), ENABLED(HAS_HEATED_CHAMBER));
-
-    // COOLER_TEMPERATURE (M143, M193)
-    cap_line(F("COOLER_TEMPERATURE"), ENABLED(HAS_COOLER));
 
     // MEATPACK Compression
     cap_line(F("MEATPACK"), SERIAL_IMPL.has_feature(port, SerialFeature::MeatPack));

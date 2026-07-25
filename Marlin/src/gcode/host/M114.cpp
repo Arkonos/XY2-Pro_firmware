@@ -69,13 +69,6 @@
       report_linear_axis_pos(unleveled);
     #endif
 
-    #if IS_KINEMATIC
-      // Kinematics applied to the leveled position
-      SERIAL_ECHOPGM(TERN(IS_SCARA, "ScaraK: ", "DeltaK: "));
-      inverse_kinematics(leveled);  // writes delta[]
-      report_linear_axis_pos(delta);
-    #endif
-
     planner.synchronize();
 
     SERIAL_ECHOPGM("Stepper:");
@@ -83,15 +76,6 @@
       SERIAL_ECHOPGM_P((PGM_P)pgm_read_ptr(&SP_AXIS_LBL[i]), stepper.position((AxisEnum)i));
     }
     SERIAL_EOL();
-
-    #if IS_SCARA
-      const xy_float_t deg = {
-        planner.get_axis_position_degrees(A_AXIS),
-        planner.get_axis_position_degrees(B_AXIS)
-      };
-      SERIAL_ECHOPGM("Degrees:");
-      report_all_axis_pos(deg, 2);
-    #endif
 
     SERIAL_ECHOPGM("FromStp:");
     get_cartesian_from_steppers();  // writes 'cartes' (with forward kinematics)
@@ -121,7 +105,6 @@
  *       Since steppers are moving, the count positions are
  *       projected by using planner calculations.
  *   D - Report more detail. This syncs the planner. (Requires M114_DETAIL)
- *   E - Report E stepper position (Requires M114_DETAIL)
  *   R - Report the realtime position instead of projected.
  */
 void GcodeSuite::M114() {
@@ -135,12 +118,6 @@ void GcodeSuite::M114() {
       report_current_position_detail();
       return;
     }
-    #if HAS_EXTRUDERS
-      if (parser.seen_test('E')) {
-        SERIAL_ECHOLNPGM("Count E:", stepper.position(E_AXIS));
-        return;
-      }
-    #endif
   #endif
 
   #if ENABLED(M114_REALTIME)

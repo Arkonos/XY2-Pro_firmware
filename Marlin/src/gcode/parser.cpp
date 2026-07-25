@@ -293,16 +293,6 @@ void GCodeParser::parse(char *p) {
   #endif
   string_arg = nullptr;
   while (const char param = uppercase(*p++)) {  // Get the next parameter. A NUL ends the loop
-
-    // Special handling for M32 [P] !/path/to/file.g#
-    // The path must be the last parameter
-    if (param == '!' && is_command('M', 32)) {
-      string_arg = p;                           // Name starts after '!'
-      char * const lb = strchr(p, '#');         // Already seen '#' as SD char (to pause buffering)
-      if (lb) *lb = '\0';                       // Safe to mark the end of the filename
-      return;
-    }
-
     #if ENABLED(GCODE_QUOTED_STRINGS)
       if (!quoted_string_arg && param == '"') {
         quoted_string_arg = true;

@@ -126,10 +126,6 @@
     float on_axis_distance = use_x_dist ? dist.x : dist.y;
 
     const float z_normalized_dist = (end.z - start.z) / on_axis_distance; // Allow divide by zero
-    #if HAS_EXTRUDERS
-      const float e_normalized_dist = (end.e - start.e) / on_axis_distance;
-      const bool inf_normalized_flag = isinf(e_normalized_dist);
-    #endif
 
     xy_int8_t icell = istart;
 
@@ -174,11 +170,9 @@
         if (dest.y != start.y) {
           if (!inf_normalized_flag) { // fall-through faster than branch
             on_axis_distance = use_x_dist ? dest.x - start.x : dest.y - start.y;
-            TERN_(HAS_EXTRUDERS, dest.e = start.e + on_axis_distance * e_normalized_dist);
             dest.z = start.z + on_axis_distance * z_normalized_dist;
           }
           else {
-            TERN_(HAS_EXTRUDERS, dest.e = end.e);
             dest.z = end.z;
           }
 
@@ -225,11 +219,9 @@
         if (dest.x != start.x) {
           if (!inf_normalized_flag) {
             on_axis_distance = use_x_dist ? dest.x - start.x : dest.y - start.y;
-            TERN_(HAS_EXTRUDERS, dest.e = start.e + on_axis_distance * e_normalized_dist); // Based on X or Y because the move is horizontal
             dest.z = start.z + on_axis_distance * z_normalized_dist;
           }
           else {
-            TERN_(HAS_EXTRUDERS, dest.e = end.e);
             dest.z = end.z;
           }
 
@@ -280,11 +272,9 @@
 
         if (!inf_normalized_flag) {
           on_axis_distance = use_x_dist ? dest.x - start.x : dest.y - start.y;
-          TERN_(HAS_EXTRUDERS, dest.e = start.e + on_axis_distance * e_normalized_dist);
           dest.z = start.z + on_axis_distance * z_normalized_dist;
         }
         else {
-          TERN_(HAS_EXTRUDERS, dest.e = end.e);
           dest.z = end.z;
         }
 
@@ -307,11 +297,9 @@
 
         if (!inf_normalized_flag) {
           on_axis_distance = use_x_dist ? dest.x - start.x : dest.y - start.y;
-          TERN_(HAS_EXTRUDERS, dest.e = start.e + on_axis_distance * e_normalized_dist);
           dest.z = start.z + on_axis_distance * z_normalized_dist;
         }
         else {
-          TERN_(HAS_EXTRUDERS, dest.e = end.e);
           dest.z = end.z;
         }
 
@@ -332,23 +320,8 @@
   }
 
 #else // UBL_SEGMENTED
-
-  #if IS_SCARA
-    #define DELTA_SEGMENT_MIN_LENGTH 0.25 // SCARA minimum segment size is 0.25mm
-  #elif ENABLED(DELTA)
-    #define DELTA_SEGMENT_MIN_LENGTH 0.10 // mm (still subject to DELTA_SEGMENTS_PER_SECOND)
-  #elif ENABLED(POLARGRAPH)
-    #define DELTA_SEGMENT_MIN_LENGTH 0.10 // mm (still subject to DELTA_SEGMENTS_PER_SECOND)
-  #else // CARTESIAN
-    #ifdef LEVELED_SEGMENT_LENGTH
-      #define DELTA_SEGMENT_MIN_LENGTH LEVELED_SEGMENT_LENGTH
-    #else
-      #define DELTA_SEGMENT_MIN_LENGTH 1.00 // mm (similar to G2/G3 arc segmentation)
-    #endif
-  #endif
-
   /**
-   * Prepare a segmented linear move for DELTA/SCARA/CARTESIAN with UBL and FADE semantics.
+   * Prepare a segmented linear move for DELT A/SC ARA/CARTESIAN with UBL and FADE semantics.
    * This calls planner.buffer_segment multiple times for small incremental moves.
    * Returns true if did NOT move, false if moved (requires current_position update).
    */
@@ -363,23 +336,14 @@
     const float cart_xy_mm_2 = HYPOT2(total.x, total.y),
                 cart_xy_mm = SQRT(cart_xy_mm_2);                                     // Total XY distance
 
-    #if IS_KINEMATIC
-      const float seconds = cart_xy_mm / scaled_fr_mm_s;                             // Duration of XY move at requested rate
-      uint16_t segments = LROUND(segments_per_second * seconds),                     // Preferred number of segments for distance @ feedrate
-               seglimit = LROUND(cart_xy_mm * RECIPROCAL(DELTA_SEGMENT_MIN_LENGTH)); // Number of segments at minimum segment length
-      NOMORE(segments, seglimit);                                                    // Limit to minimum segment length (fewer segments)
-    #else
-      uint16_t segments = LROUND(cart_xy_mm * RECIPROCAL(DELTA_SEGMENT_MIN_LENGTH)); // Cartesian fixed segment length
-    #endif
+  
+    uint16_t segments = LROUND(cart_xy_mm * RECIPROCAL(DELTA_SEGMENT_MIN_LENGTH)); // Cartesian fixed segment length
 
     NOLESS(segments, 1U);                                                            // Must have at least one segment
     const float inv_segments = 1.0f / segments;                                      // Reciprocal to save calculation
 
     // Add hints to help optimize the move
     PlannerHints hints(SQRT(cart_xy_mm_2 + sq(total.z)) * inv_segments);             // Length of each segment
-    #if ENABLED(SCARA_FEEDRATE_SCALING)
-      hints.inv_duration = scaled_fr_mm_s / hints.millimeters;
-    #endif
 
     xyze_float_t diff = total * inv_segments;
 

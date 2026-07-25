@@ -99,9 +99,6 @@
 //
 // Temperature Sensors
 //
-#if NEED_HEAT_HEAD
-  #define TEMP_0_PIN                          PA1   // TH1
-#endif
 #if NEED_HEAT_BED
   #define TEMP_BED_PIN                        PA0   // TB1       
 #endif                
@@ -109,9 +106,6 @@
 //
 // Heaters
 //
-#if NEED_HEAT_HEAD
-  #define HEATER_0_PIN                        PG12  // HEATER1
-#endif
 #if NEED_HEAT_BED
   #define HEATER_BED_PIN                      PG11  // HOT BED
   //#define HEATER_BED_INVERTING              true

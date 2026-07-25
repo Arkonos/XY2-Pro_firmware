@@ -33,10 +33,6 @@
   #include "../../feature/probe_temp_comp.h"
 #endif
 
-#if HAS_MULTI_HOTEND
-  #include "../../module/tool_change.h"
-#endif
-
 #if EITHER(DWIN_LCD_PROUI, DWIN_CREALITY_LCD_JYERSUI)
   #include "../../lcd/marlinui.h"
 #endif

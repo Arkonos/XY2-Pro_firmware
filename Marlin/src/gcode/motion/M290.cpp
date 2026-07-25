@@ -29,29 +29,8 @@
 #include "../../module/probe.h"
 #include "../../module/planner.h"
 
-#if ENABLED(BABYSTEP_ZPROBE_OFFSET)
-  #include "../../core/serial.h"
-#endif
-
 #if ENABLED(MESH_BED_LEVELING)
   #include "../../feature/bedlevel/bedlevel.h"
-#endif
-
-#if ENABLED(BABYSTEP_ZPROBE_OFFSET)
-
-  FORCE_INLINE void mod_probe_offset(const_float_t offs) {
-    if (TERN1(BABYSTEP_HOTEND_Z_OFFSET, active_extruder == 0)) {
-      probe.offset.z += offs;
-      SERIAL_ECHO_MSG(STR_PROBE_OFFSET " " STR_Z, probe.offset.z);
-    }
-    else {
-      #if ENABLED(BABYSTEP_HOTEND_Z_OFFSET)
-        hotend_offset[active_extruder].z -= offs;
-        SERIAL_ECHO_MSG(STR_PROBE_OFFSET STR_Z ": ", hotend_offset[active_extruder].z);
-      #endif
-    }
-  }
-
 #endif
 
 /**
@@ -63,9 +42,6 @@
  *  Y<linear> - Distance to step Y
  *  Z<linear> - Distance to step Z
  *  S<linear> - Distance to step Z (alias for Z)
- *
- * With BABYSTEP_ZPROBE_OFFSET:
- *  P0 - Don't adjust the Z probe offset
  */
 void GcodeSuite::M290() {
   #if ENABLED(BABYSTEP_XY)
@@ -73,42 +49,16 @@ void GcodeSuite::M290() {
       if (parser.seenval(AXIS_CHAR(a)) || (a == Z_AXIS && parser.seenval('S'))) {
         const float offs = constrain(parser.value_axis_units((AxisEnum)a), -2, 2);
         babystep.add_mm((AxisEnum)a, offs);
-        #if ENABLED(BABYSTEP_ZPROBE_OFFSET)
-          if (a == Z_AXIS && parser.boolval('P', true)) mod_probe_offset(offs);
-        #endif
       }
   #else
     if (parser.seenval('Z') || parser.seenval('S')) {
       const float offs = constrain(parser.value_axis_units(Z_AXIS), -2, 2);
       babystep.add_mm(Z_AXIS, offs);
-      #if ENABLED(BABYSTEP_ZPROBE_OFFSET)
-        if (parser.boolval('P', true)) mod_probe_offset(offs);
-      #endif
     }
   #endif
 
   if (!parser.seen(STR_AXES_MAIN) || parser.seen('R')) {
     SERIAL_ECHO_START();
-
-    #if ENABLED(BABYSTEP_ZPROBE_OFFSET)
-      SERIAL_ECHOLNPGM(STR_PROBE_OFFSET " " STR_Z, probe.offset.z);
-    #endif
-
-    #if ENABLED(BABYSTEP_HOTEND_Z_OFFSET)
-    {
-      SERIAL_ECHOLNPGM_P(
-        PSTR("Hotend "), active_extruder
-        #if ENABLED(BABYSTEP_XY)
-          , PSTR("Offset X"), hotend_offset[active_extruder].x
-          , SP_Y_STR, hotend_offset[active_extruder].y
-          , SP_Z_STR
-        #else
-          , PSTR("Offset Z")
-        #endif
-        , hotend_offset[active_extruder].z
-      );
-    }
-    #endif
 
     #if ENABLED(MESH_BED_LEVELING)
       SERIAL_ECHOLNPGM("MBL Adjust Z", bedlevel.z_offset);

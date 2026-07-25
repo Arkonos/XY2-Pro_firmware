@@ -86,17 +86,6 @@ void LevelingBilinear::extrapolate_one_point(const uint8_t x, const uint8_t y, c
   //                                : ((c < b) ? b : (a < c) ? a : c);
 }
 
-//Enable this if your SCARA uses 180° of total area
-//#define EXTRAPOLATE_FROM_EDGE
-
-#if ENABLED(EXTRAPOLATE_FROM_EDGE)
-  #if (GRID_MAX_POINTS_X) < (GRID_MAX_POINTS_Y)
-    #define HALF_IN_X
-  #elif (GRID_MAX_POINTS_Y) < (GRID_MAX_POINTS_X)
-    #define HALF_IN_Y
-  #endif
-#endif
-
 void LevelingBilinear::reset() {
   grid_start.reset();
   grid_spacing.reset();

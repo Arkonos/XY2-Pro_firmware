@@ -31,9 +31,7 @@
 #include "menu_item.h"
 #include "../../module/temperature.h"
 #include "../../gcode/queue.h"
-#include "../../module/printcounter.h"
 #include "../../module/stepper.h"
-#include "../../sd/cardreader.h"
 
 #if ENABLED(PSU_CONTROL)
   #include "../../feature/power.h"
@@ -43,10 +41,10 @@
   #include "game/game.h"
 #endif
 
-#if EITHER(SDSUPPORT, HOST_PROMPT_SUPPORT) || defined(ACTION_ON_CANCEL)
+#if HOST_PROMPT_SUPPORT || defined(ACTION_ON_CANCEL)
   #define MACHINE_CAN_STOP 1
 #endif
-#if ANY(SDSUPPORT, HOST_PROMPT_SUPPORT, PARK_HEAD_ON_PAUSE) || defined(ACTION_ON_PAUSE)
+#if ANY(HOST_PROMPT_SUPPORT, PARK_HEAD_ON_PAUSE) || defined(ACTION_ON_PAUSE)
   #define MACHINE_CAN_PAUSE 1
 #endif
 
@@ -67,7 +65,6 @@
 #endif
 
 void menu_tune();
-void menu_cancelobject();
 void menu_motion();
 void menu_temperature();
 void menu_configuration();
@@ -76,24 +73,12 @@ void menu_configuration();
   void menu_power_monitor();
 #endif
 
-#if ENABLED(MIXING_EXTRUDER)
-  void menu_mixer();
-#endif
-
-#if ENABLED(ADVANCED_PAUSE_FEATURE)
-  void menu_change_filament();
-#endif
-
 #if ENABLED(LCD_INFO_MENU)
   void menu_info();
 #endif
 
 #if EITHER(LED_CONTROL_MENU, CASE_LIGHT_MENU)
   void menu_led();
-#endif
-
-#if HAS_CUTTER
-  void menu_spindle_laser();
 #endif
 
 #if ENABLED(PREHEAT_SHORTCUT_MENU_ITEM)
@@ -223,54 +208,11 @@ void menu_configuration();
 #endif // CUSTOM_MENU_MAIN
 
 void menu_main() {
-  const bool busy = printingIsActive()
-    #if ENABLED(SDSUPPORT)
-      , card_detected = card.isMounted()
-      , card_open = card_detected && card.isFileOpen()
-    #endif
+  const bool busy = false
   ;
 
   START_MENU();
   BACK_ITEM(MSG_INFO_SCREEN);
-
-  #if ENABLED(SDSUPPORT)
-
-    #if !defined(MEDIA_MENU_AT_TOP) && !HAS_ENCODER_WHEEL
-      #define MEDIA_MENU_AT_TOP
-    #endif
-
-    auto sdcard_menu_items = [&]{
-      #if ENABLED(MENU_ADDAUTOSTART)
-        ACTION_ITEM(MSG_RUN_AUTO_FILES, card.autofile_begin); // Run Auto Files
-      #endif
-
-      if (card_detected) {
-        if (!card_open) {
-          #if HAS_SD_DETECT
-            GCODES_ITEM(MSG_CHANGE_MEDIA, F("M21"));        // M21 Change Media
-          #else                                             // - or -
-            ACTION_ITEM(MSG_RELEASE_MEDIA, []{              // M22 Release Media
-              queue.inject(F("M22"));
-              #if ENABLED(TFT_COLOR_UI)
-                // Menu display issue on item removal with multi language selection menu
-                if (encoderTopLine > 0) encoderTopLine--;
-                ui.refresh(LCDVIEW_CALL_REDRAW_NEXT);
-              #endif
-            });
-          #endif
-          SUBMENU(MSG_MEDIA_MENU, MEDIA_MENU_GATEWAY);      // Media Menu (or Password First)
-        }
-      }
-      else {
-        #if HAS_SD_DETECT
-          ACTION_ITEM(MSG_NO_MEDIA, nullptr);               // "No Media"
-        #else
-          GCODES_ITEM(MSG_ATTACH_MEDIA, F("M21"));          // M21 Attach Media
-        #endif
-      }
-    };
-
-  #endif
 
   if (busy) {
     #if MACHINE_CAN_PAUSE
@@ -298,10 +240,6 @@ void menu_main() {
     #endif
   }
   else {
-
-    #if BOTH(SDSUPPORT, MEDIA_MENU_AT_TOP)
-      sdcard_menu_items();
-    #endif
 
     if (TERN0(MACHINE_CAN_PAUSE, printingIsPaused()))
       ACTION_ITEM(MSG_RESUME_PRINT, ui.resume_print);
@@ -349,16 +287,6 @@ void menu_main() {
     }
   #endif
 
-  #if ENABLED(ADVANCED_PAUSE_FEATURE)
-    #if E_STEPPERS == 1 && DISABLED(FILAMENT_LOAD_UNLOAD_GCODES)
-      YESNO_ITEM(MSG_FILAMENTCHANGE,
-        menu_change_filament, nullptr,
-        GET_TEXT_F(MSG_FILAMENTCHANGE), (const char *)nullptr, F("?")
-      );
-    #else
-      SUBMENU(MSG_FILAMENTCHANGE, menu_change_filament);
-    #endif
-  #endif
 
   #if ENABLED(LCD_INFO_MENU)
     SUBMENU(MSG_INFO_MENU, menu_info);
@@ -373,26 +301,13 @@ void menu_main() {
   //
   #if ENABLED(PSU_CONTROL)
     if (powerManager.psu_on)
-      #if ENABLED(PS_OFF_CONFIRM)
-        CONFIRM_ITEM(MSG_SWITCH_PS_OFF,
-          MSG_YES, MSG_NO,
-          ui.poweroff, nullptr,
-          GET_TEXT_F(MSG_SWITCH_PS_OFF), (const char *)nullptr, F("?")
-        );
-      #else
-        ACTION_ITEM(MSG_SWITCH_PS_OFF, ui.poweroff);
-      #endif
+      ACTION_ITEM(MSG_SWITCH_PS_OFF, ui.poweroff);
     else
       GCODES_ITEM(MSG_SWITCH_PS_ON, F("M80"));
   #endif
 
-  #if ENABLED(SDSUPPORT) && DISABLED(MEDIA_MENU_AT_TOP)
-    sdcard_menu_items();
-  #endif
-
   #if HAS_SERVICE_INTERVALS
     static auto _service_reset = [](const int index) {
-      print_job_timer.resetServiceInterval(index);
       ui.completion_feedback();
       ui.reset_status();
       ui.return_to_status();

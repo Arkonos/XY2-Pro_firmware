@@ -29,14 +29,6 @@
 #include "../../module/probe.h"
 #include "../../feature/bedlevel/bedlevel.h"
 
-#if HAS_MULTI_HOTEND
-  #include "../../module/tool_change.h"
-#endif
-
-#if ENABLED(BLTOUCH)
-  #include "../../feature/bltouch.h"
-#endif
-
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../core/debug_out.h"
 
@@ -92,9 +84,6 @@ void GcodeSuite::G35() {
     tool_change(0, true);
   #endif
 
-  // Disable duplication mode on homing
-  TERN_(HAS_DUPLICATION_MODE, set_duplication_enabled(false));
-
   // Home only Z axis when X and Y is trusted, otherwise all axes, if needed before this procedure
   if (!all_axes_trusted()) process_subcommands_now(F("G28Z"));
 
@@ -103,12 +92,8 @@ void GcodeSuite::G35() {
   // Probe all positions
   LOOP_L_N(i, G35_PROBE_COUNT) {
 
-    // In BLTOUCH HS mode, the probe travels in a deployed state.
-    // Users of G35 might have a badly misaligned bed, so raise Z by the
-    // length of the deployed pin (BLTOUCH stroke < 7mm)
-
     // Unsure if this is even required. The probe seems to lift correctly after probe done.
-    do_blocking_move_to_z(SUM_TERN(BLTOUCH, Z_CLEARANCE_BETWEEN_PROBES, bltouch.z_extra_clearance()));
+    do_blocking_move_to_z(Z_CLEARANCE_BETWEEN_PROBES);
     const float z_probed_height = probe.probe_at_point(tramming_points[i], PROBE_PT_RAISE, 0, true);
 
     if (isnan(z_probed_height)) {

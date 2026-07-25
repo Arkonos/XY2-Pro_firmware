@@ -22,7 +22,6 @@
 #pragma once
 
 #include "../inc/MarlinConfig.h"
-#include "../sd/cardreader.h"
 #include "../module/motion.h"
 #include "../libs/buzzer.h"
 
@@ -34,14 +33,6 @@
 
 #if E_MANUAL > 1
   #define MULTI_E_MANUAL 1
-#endif
-
-#if HAS_DISPLAY
-  #include "../module/printcounter.h"
-#endif
-
-#if ENABLED(ADVANCED_PAUSE_FEATURE)
-  #include "../feature/pause.h"
 #endif
 
 #if ENABLED(DWIN_CREALITY_LCD)
@@ -129,51 +120,30 @@ typedef bool (*statusResetFunc_t)();
       static int8_t constexpr e_index = 0;
     #endif
     static millis_t start_time;
-    #if IS_KINEMATIC
-      static xyze_pos_t all_axes_destination;
-    #endif
+
   public:
     static screenFunc_t screen_ptr;
     static float menu_scale;
-    #if IS_KINEMATIC
-      static float offset;
-    #endif
-    #if ENABLED(MANUAL_E_MOVES_RELATIVE)
-      static float e_origin;
-    #endif
     template <typename T>
     static void set_destination(const T& dest) {
-      #if IS_KINEMATIC
-        // Moves are segmented, so the entire move is not submitted at once.
-        // Using a separate variable prevents corrupting the in-progress move.
-        all_axes_destination = current_position;
-        all_axes_destination.set(dest);
-      #else
-        // Moves are submitted as single line to the planner using buffer_line.
-        current_position.set(dest);
-      #endif
+      // Moves are submitted as single line to the planner using buffer_line.
+      current_position.set(dest);
     }
     static float axis_value(const AxisEnum axis) {
-      return NATIVE_TO_LOGICAL(processing ? destination[axis] : SUM_TERN(IS_KINEMATIC, current_position[axis], offset), axis);
+      return NATIVE_TO_LOGICAL(processing ? destination[axis] : current_position[axis], axis);
     }
     static bool apply_diff(const AxisEnum axis, const_float_t diff, const_float_t min, const_float_t max) {
-      #if IS_KINEMATIC
-        float &valref = offset;
-        const float rmin = min - current_position[axis], rmax = max - current_position[axis];
-      #else
-        float &valref = current_position[axis];
-        const float rmin = min, rmax = max;
-      #endif
+      float &valref = current_position[axis];
+      const float rmin = min, rmax = max;
+
       valref += diff;
       const float pre = valref;
       if (min != max) { if (diff < 0) NOLESS(valref, rmin); else NOMORE(valref, rmax); }
       return pre != valref;
     }
-    #if IS_KINEMATIC
-      static bool processing;
-    #else
-      static bool constexpr processing = false;
-    #endif
+  
+    static bool constexpr processing = false;
+
     static void task();
     static void soon(const AxisEnum axis OPTARG(MULTI_E_MANUAL, const int8_t eindex=active_extruder));
   };
@@ -187,9 +157,7 @@ typedef bool (*statusResetFunc_t)();
 ////////////////////////////////////////////
 
 class MarlinUI;
-#if !TRONXY_UI
 extern MarlinUI ui;
-#endif
 class MarlinUI {
 public:
 
@@ -249,11 +217,6 @@ public:
     }
   #endif
 
-  #if ENABLED(SDSUPPORT)
-    #define MEDIA_MENU_GATEWAY TERN(PASSWORD_ON_SD_PRINT_MENU, password.media_gatekeeper, menu_media)
-    static void media_changed(const uint8_t old_stat, const uint8_t stat);
-  #endif
-
   #if HAS_LCD_BRIGHTNESS
     #ifndef LCD_BRIGHTNESS_MIN
       #define LCD_BRIGHTNESS_MIN   1
@@ -295,45 +258,7 @@ public:
     }
   #endif
 
-  #if HAS_PRINT_PROGRESS
-    #if HAS_PRINT_PROGRESS_PERMYRIAD
-      typedef uint16_t progress_t;
-      #define PROGRESS_SCALE 100U
-      #define PROGRESS_MASK 0x7FFF
-    #else
-      typedef uint8_t progress_t;
-      #define PROGRESS_SCALE 1U
-      #define PROGRESS_MASK 0x7F
-    #endif
-    #if ENABLED(LCD_SET_PROGRESS_MANUALLY)
-      static progress_t progress_override;
-      static void set_progress(const progress_t p) { progress_override = _MIN(p, 100U * (PROGRESS_SCALE)); }
-      static void set_progress_done() { progress_override = (PROGRESS_MASK + 1U) + 100U * (PROGRESS_SCALE); }
-      static void progress_reset() { if (progress_override & (PROGRESS_MASK + 1U)) set_progress(0); }
-    #endif
-    #if ENABLED(SHOW_REMAINING_TIME)
-      static uint32_t _calculated_remaining_time() {
-        const duration_t elapsed = print_job_timer.duration();
-        const progress_t progress = _get_progress();
-        return progress ? elapsed.value * (100 * (PROGRESS_SCALE) - progress) / progress : 0;
-      }
-      #if ENABLED(USE_M73_REMAINING_TIME)
-        static uint32_t remaining_time;
-        FORCE_INLINE static void set_remaining_time(const uint32_t r) { remaining_time = r; }
-        FORCE_INLINE static uint32_t get_remaining_time() { return remaining_time ?: _calculated_remaining_time(); }
-        FORCE_INLINE static void reset_remaining_time() { set_remaining_time(0); }
-      #else
-        FORCE_INLINE static uint32_t get_remaining_time() { return _calculated_remaining_time(); }
-      #endif
-    #endif
-    static progress_t _get_progress();
-    #if HAS_PRINT_PROGRESS_PERMYRIAD
-      FORCE_INLINE static uint16_t get_progress_permyriad() { return _get_progress(); }
-    #endif
-    static uint8_t get_progress_percent() { return uint8_t(_get_progress() / (PROGRESS_SCALE)); }
-  #else
-    static constexpr uint8_t get_progress_percent() { return 0; }
-  #endif
+  static constexpr uint8_t get_progress_percent() { return 0; }
 
   #if HAS_STATUS_MESSAGE
 
@@ -447,10 +372,6 @@ public:
         FORCE_INLINE static void refresh_contrast() { set_contrast(contrast); }
       #endif
 
-      #if BOTH(FILAMENT_LCD_DISPLAY, SDSUPPORT)
-        static millis_t next_filament_display;
-      #endif
-
       #if HAS_TOUCH_SLEEP
         static void wakeup_screen();
       #endif
@@ -504,18 +425,8 @@ public:
 
   #endif
 
-  #if ENABLED(SDSUPPORT)
-    #if BOTH(SCROLL_LONG_FILENAMES, HAS_MARLINUI_MENU)
-      #define MARLINUI_SCROLL_NAME 1
-    #endif
-    #if MARLINUI_SCROLL_NAME
-      static uint8_t filename_scroll_pos, filename_scroll_max;
-    #endif
-    static const char * scrolled_filename(CardReader &theCard, const uint8_t maxlen, uint8_t hash, const bool doScroll);
-  #endif
-
   #if HAS_PREHEAT
-    enum PreheatTarget : uint8_t { PT_HOTEND, PT_BED, PT_FAN, PT_CHAMBER, PT_ALL = 0xFF };
+    enum PreheatTarget : uint8_t { PT_HOTEND, PT_BED, PT_FAN, PT_ALL = 0xFF };
     static preheat_t material_preset[PREHEAT_COUNT];
     static FSTR_P get_preheat_label(const uint8_t m);
     static void apply_preheat(const uint8_t m, const uint8_t pmask, const uint8_t e=active_extruder);
@@ -782,14 +693,7 @@ private:
   #endif
 };
 
-#if !TRONXY_UI
 #define LCD_MESSAGE_F(S)       ui.set_status(F(S))
 #define LCD_MESSAGE(M)         ui.set_status(GET_TEXT_F(M))
 #define LCD_ALERTMESSAGE_F(S)  ui.set_alert_status(F(S))
 #define LCD_ALERTMESSAGE(M)    ui.set_alert_status(GET_TEXT_F(M))
-#else
-#define LCD_MESSAGE_F(S)
-#define LCD_MESSAGE(M)
-#define LCD_ALERTMESSAGE_F(S)
-#define LCD_ALERTMESSAGE(M)
-#endif

@@ -44,14 +44,6 @@
   #include "../feature/bedlevel/bedlevel.h"
 #endif
 
-#if ENABLED(BD_SENSOR)
-  #include "../feature/bedlevel/bdl/bdl.h"
-#endif
-
-#if ENABLED(DELTA)
-  #include "delta.h"
-#endif
-
 #if ENABLED(SENSORLESS_PROBING)
   abc_float_t offset_sensorless_adj{0};
   float largest_sensorless_adj = 0;
@@ -72,10 +64,6 @@
 
 #if ENABLED(MEASURE_BACKLASH_WHEN_PROBING)
   #include "../feature/backlash.h"
-#endif
-
-#if ENABLED(BLTOUCH)
-  #include "../feature/bltouch.h"
 #endif
 
 #if ENABLED(HOST_PROMPT_SUPPORT)
@@ -105,12 +93,11 @@
 
 Probe probe;
 
-#if !TRONXY_UI
 xyz_pos_t Probe::offset; // Initialized by settings.load()
-#endif
+
 
 #if HAS_PROBE_XY_OFFSET
-  const xy_pos_t &Probe::offset_xy = TERN(HAS_TRONXY_UI,Probe_Offset,Probe::offset);
+  const xy_pos_t &Probe::offset_xy = Probe::offset;
 #endif
 
 #if ENABLED(SENSORLESS_PROBING)
@@ -356,7 +343,7 @@ xyz_pos_t Probe::offset; // Initialized by settings.load()
 void Probe::do_z_raise(const float z_raise) {
   if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Probe::do_z_raise(", z_raise, ")");
   float z_dest = z_raise;
-  if (TERN(HAS_TRONXY_UI,Probe_Offset.z,offset.z) < 0) z_dest -= TERN(HAS_TRONXY_UI,Probe_Offset.z,offset.z);
+  if offset.z) < 0 z_dest -= offset.z;
   do_z_clearance(z_dest);
 }
 
@@ -397,10 +384,6 @@ FORCE_INLINE void probe_specific_action(const bool deploy) {
   #elif ENABLED(Z_PROBE_SLED)
 
     dock_sled(!deploy);
-
-  #elif ENABLED(BLTOUCH)
-
-    deploy ? bltouch.deploy() : bltouch.stow();
 
   #elif HAS_Z_SERVO_PROBE
 
@@ -449,16 +432,6 @@ FORCE_INLINE void probe_specific_action(const bool deploy) {
 
     DEBUG_ECHOPGM("Preheating ");
 
-    #if ENABLED(WAIT_FOR_NOZZLE_HEAT)
-      const celsius_t hotendPreheat = hotend_temp > thermalManager.degTargetHotend(0) ? hotend_temp : 0;
-      if (hotendPreheat) {
-        DEBUG_ECHOPGM("hotend (", hotendPreheat, ")");
-        thermalManager.setTargetHotend(hotendPreheat, 0);
-      }
-    #elif ENABLED(WAIT_FOR_BED_HEAT)
-      constexpr celsius_t hotendPreheat = 0;
-    #endif
-
     #if ENABLED(WAIT_FOR_BED_HEAT)
       const celsius_t bedPreheat = bed_temp > thermalManager.degTargetBed() ? bed_temp : 0;
       if (bedPreheat) {
@@ -484,8 +457,6 @@ void Probe::probe_error_stop() {
   SERIAL_ECHOPGM(STR_STOP_PRE);
   #if EITHER(Z_PROBE_SLED, Z_PROBE_ALLEN_KEY)
     SERIAL_ECHOPGM(STR_STOP_UNHOMED);
-  #elif ENABLED(BLTOUCH)
-    SERIAL_ECHOPGM(STR_STOP_BLTOUCH);
   #endif
   SERIAL_ECHOLNPGM(STR_STOP_POST);
   stop();
@@ -583,10 +554,6 @@ bool Probe::probe_down_to_z(const_float_t z, const_feedRate_t fr_mm_s) {
   #if BOTH(HAS_TEMP_HOTEND, WAIT_FOR_HOTEND)
     thermalManager.wait_for_hotend_heating(active_extruder);
   #endif
-  #if ENABLED(BLTOUCH)
-    if (!bltouch.high_speed_mode && bltouch.deploy())
-      return true; // Deploy in LOW SPEED MODE on every probe action
-  #endif
 
   // Disable stealthChop if used. Enable diag1 pin on driver.
   #if ENABLED(SENSORLESS_PROBING)
@@ -630,11 +597,6 @@ bool Probe::probe_down_to_z(const_float_t z, const_feedRate_t fr_mm_s) {
     #endif
     if (test_sensitivity.z) tmc_disable_stallguard(stepperZ, stealth_states.z);
     endstops.set_homing_current(false);
-  #endif
-
-  #if ENABLED(BLTOUCH)
-    if (probe_triggered && !bltouch.high_speed_mode && bltouch.stow())
-      return true; // Stow in LOW SPEED MODE on every trigger
   #endif
 
   // Clear endstop flags
@@ -703,7 +665,7 @@ float Probe::run_z_probe(const bool sanity_check/*=true*/) {
 
     // Do a first probe at the fast speed
     const bool probe_fail = probe_down_to_z(z_probe_low_point, fr_mm_s),            // No probe trigger?
-               early_fail = (scheck && current_position.z > -TERN(HAS_TRONXY_UI,Probe_Offset.z,offset.z) + clearance); // Probe triggered too high?
+               early_fail = (scheck && current_position.z > -offset.z + clearance); // Probe triggered too high?
     #if ENABLED(DEBUG_LEVELING_FEATURE)
       if (DEBUGGING(LEVELING) && (probe_fail || early_fail)) {
         DEBUG_ECHOPGM_P(plbl);
@@ -720,7 +682,7 @@ float Probe::run_z_probe(const bool sanity_check/*=true*/) {
 
   // Stop the probe before it goes too low to prevent damage.
   // If Z isn't known then probe to -10mm.
-  const float z_probe_low_point = axis_is_trusted(Z_AXIS) ? TERN(HAS_TRONXY_UI,Probe_Offset.z,offset.z) + Z_PROBE_LOW_POINT : -10.0;
+  const float z_probe_low_point = axis_is_trusted(Z_AXIS) ? offset.z + Z_PROBE_LOW_POINT : -10.0;
 
   // Double-probing does a fast probe followed by a slow probe
   #if TOTAL_PROBING == 2
@@ -742,7 +704,7 @@ float Probe::run_z_probe(const bool sanity_check/*=true*/) {
 
     // If the nozzle is well over the travel height then
     // move down quickly before doing the slow probe
-    const float z = Z_CLEARANCE_DEPLOY_PROBE + 5.0 + (TERN(HAS_TRONXY_UI,Probe_Offset.z,offset.z) < 0 ? -TERN(HAS_TRONXY_UI,Probe_Offset.z,offset.z) : 0);
+    const float z = Z_CLEARANCE_DEPLOY_PROBE + 5.0 + (offset.z < 0 ? -offset.z : 0);
     if (current_position.z > z) {
       // Probe down fast. If the probe never triggered, raise for probe clearance
       if (!probe_down_to_z(z, z_probe_fast_mm_s))
@@ -864,11 +826,6 @@ float Probe::probe_at_point(const_float_t rx, const_float_t ry, const ProbePtRai
     DEBUG_POS("", current_position);
   }
 
-  #if ENABLED(BLTOUCH)
-    if (bltouch.high_speed_mode && bltouch.triggered())
-      bltouch._reset();
-  #endif
-
   // On delta keep Z below clip height or do_blocking_move_to will abort
   xyz_pos_t npos = NUM_AXIS_ARRAY(
     rx, ry, TERN(DELTA, _MIN(delta_clip_start_height, current_position.z), current_position.z),
@@ -888,7 +845,7 @@ float Probe::probe_at_point(const_float_t rx, const_float_t ry, const ProbePtRai
 
   float measured_z = NAN;
   if (!deploy()) {
-    measured_z = run_z_probe(sanity_check) + TERN(HAS_TRONXY_UI,Probe_Offset.z,offset.z);
+    measured_z = run_z_probe(sanity_check) + offset.z;
     TERN_(HAS_PTC, ptc.apply_compensation(measured_z));
     TERN_(X_AXIS_TWIST_COMPENSATION, measured_z += xatc.compensation(npos + offset_xy));
   }

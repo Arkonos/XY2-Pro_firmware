@@ -52,10 +52,6 @@
   #include "../../../lcd/e3v2/proui/dwin.h"
 #endif
 
-#if HAS_MULTI_HOTEND
-  #include "../../../module/tool_change.h"
-#endif
-
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../../core/debug_out.h"
 
@@ -493,9 +489,7 @@ G29_TYPE GcodeSuite::G29() {
     if (!no_action) set_bed_leveling_enabled(false);
 
     // Deploy certain probes before starting probing
-    #if ENABLED(BLTOUCH)
-      do_z_clearance(Z_CLEARANCE_DEPLOY_PROBE);
-    #elif HAS_BED_PROBE
+    #if HAS_BED_PROBE
       if (probe.deploy()) { // (returns true on deploy failure)
         set_bed_leveling_enabled(abl.reenable);
         G29_RETURN(false, true);
@@ -512,10 +506,6 @@ G29_TYPE GcodeSuite::G29() {
         // Can't re-enable (on error) until the new grid is written
         abl.reenable = false;
       }
-
-      // Pre-populate local Z values from the stored mesh
-      TERN_(IS_KINEMATIC, COPY(abl.z_values, bedlevel.z_values));
-
     #endif // AUTO_BED_LEVELING_BILINEAR
 
   } // !g29_in_progress
@@ -699,16 +689,12 @@ G29_TYPE GcodeSuite::G29() {
         // Inner loop is X with PROBE_Y_FIRST disabled
         for (PR_INNER_VAR = inStart; PR_INNER_VAR != inStop; pt_index++, PR_INNER_VAR += inInc) {
 
-          #if TRONXY_UI
-          if(globalStop)break;
-          #endif
-
           abl.probePos = abl.probe_position_lf + abl.gridSpacing * abl.meshCount.asFloat();
 
           TERN_(AUTO_BED_LEVELING_LINEAR, abl.indexIntoAB[abl.meshCount.x][abl.meshCount.y] = ++abl.abl_probe_index); // 0...
 
           // Avoid probing outside the round or hexagonal area
-          if (TERN0(IS_KINEMATIC, !probe.can_reach(abl.probePos))) continue;
+          if (0) continue;
 
           if (abl.verbose_level) SERIAL_ECHOLNPGM("Probing mesh point ", pt_index, "/", abl.abl_points, ".");
           TERN_(HAS_STATUS_MESSAGE, ui.status_printf(0, F(S_FMT " %i/%i"), GET_TEXT(MSG_PROBING_POINT), int(pt_index), int(abl.abl_points)));
@@ -734,11 +720,7 @@ G29_TYPE GcodeSuite::G29() {
 
             const float z = abl.measured_z + abl.Z_offset;
             abl.z_values[abl.meshCount.x][abl.meshCount.y] = z;
-            #if TRONXY_UI
-            if(updateAutoLevel)updateAutoLevel(abl.meshCount.x, abl.meshCount.y, (float*)abl.z_values);
-            #else
             TERN_(EXTENSIBLE_UI, ExtUI::onMeshUpdate(abl.meshCount, z));
-            #endif
 
           #endif
 
@@ -813,7 +795,6 @@ G29_TYPE GcodeSuite::G29() {
       else {
         bedlevel.set_grid(abl.gridSpacing, abl.probe_position_lf);
         COPY(bedlevel.z_values, abl.z_values);
-        TERN_(IS_KINEMATIC, bedlevel.extrapolate_unprobed_bed_level());
         bedlevel.refresh_bed_level();
 
         bedlevel.print_leveling_grid();
@@ -960,12 +941,6 @@ G29_TYPE GcodeSuite::G29() {
   TERN_(HAS_MULTI_HOTEND, if (abl.tool_index != 0) tool_change(abl.tool_index));
 
   report_current_position();
-  #if TRONXY_UI
-  if(updateAutoLevel) {
-    if(abl.meshCount.y == abl.grid_points.y)updateAutoLevel(0, -1, (float*)abl.z_values);//正常完成
-    else updateAutoLevel(0, -2, (float*)abl.z_values);//异常
-  }
-  #endif
 
   G29_RETURN(isnan(abl.measured_z), true);
 }

@@ -38,9 +38,7 @@
 void GcodeSuite::M999() {
   marlin_state = MF_RUNNING;
   
-  #if !TRONXY_UI
   ui.reset_alert_level();
-  #endif
 
   if (parser.boolval('S')) return;
 

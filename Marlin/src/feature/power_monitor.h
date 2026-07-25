@@ -118,11 +118,6 @@ public:
     #if ENABLED(POWER_MONITOR_VOLTAGE)
       volts.reset();
     #endif
-
-    #if ENABLED(SDSUPPORT)
-      display_item_ms = 0;
-      display_item = 0;
-    #endif
   }
 
   static void capture_values() {
