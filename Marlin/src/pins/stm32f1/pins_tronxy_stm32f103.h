@@ -103,8 +103,8 @@
   #define TEMP_0_PIN                          PA1   // TH1
 #endif
 #if NEED_HEAT_BED
-  #define TEMP_BED_PIN                        PA0   // TB1       
-#endif                
+  #define TEMP_BED_PIN                        PA0   // TB1
+#endif
 
 //
 // Heaters
@@ -140,7 +140,8 @@
   #define FIL_RUNOUT2_PIN                   PF13
 #endif
 #if HAS_I_AXIS
-  #define I_MIN_PIN                         PA15 // Former filament sensor input (MT_DET)
+  #define I_MIN_PIN                         PA15 // Former filament sensor input (MT_DET) FILAMENT1
+  #define I_MAX_PIN                         PF13 // FILAMENT2
 #endif
 
 #define STEP_TIMER                            3
@@ -161,7 +162,7 @@
 // #define HAS_SPI_FLASH                     1
 // #define SPI_FLASH_SIZE                    0x200000  // 2MB
 // #define SPI_FLASH_CS_PIN                  PB12
-// #define SPI_FLASH_MOSI_PIN                PB15 
+// #define SPI_FLASH_MOSI_PIN                PB15
 // #define SPI_FLASH_MISO_PIN                PB14
 // #define SPI_FLASH_SCK_PIN                 PB13
 
@@ -184,7 +185,7 @@
 #define FSMC_CS_PIN                       PD7
 #define FSMC_RS_PIN                       PD11
 #define FSMC_DMA_DEV                      DMA2
-#define FSMC_DMA_CHANNEL               DMA_CH5 
+#define FSMC_DMA_CHANNEL               DMA_CH5
 
 #define TFT_CS_PIN                 FSMC_CS_PIN
 #define TFT_RS_PIN                 FSMC_RS_PIN
@@ -195,7 +196,7 @@
 // #define TFT_PIXEL_OFFSET_Y                  32
 // #define TFT_DRIVER                     ILI9488
 // #define TFT_BUFFER_SIZE                  14400
-  
+
   #define XPT2046_X_CALIBRATION           -17181
   #define XPT2046_Y_CALIBRATION            11434
   #define XPT2046_X_OFFSET                   501

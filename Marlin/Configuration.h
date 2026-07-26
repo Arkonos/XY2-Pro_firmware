@@ -1072,7 +1072,7 @@
 //#define USE_XMAX_PLUG
 //#define USE_YMAX_PLUG
 #define USE_ZMAX_PLUG
-//#define USE_IMAX_PLUG
+#define USE_IMAX_PLUG
 //#define USE_JMAX_PLUG
 //#define USE_KMAX_PLUG
 //#define USE_UMAX_PLUG
@@ -1086,7 +1086,7 @@
   //#define ENDSTOPPULLUP_XMIN
   //#define ENDSTOPPULLUP_YMIN
   //#define ENDSTOPPULLUP_ZMIN
-  #define ENDSTOPPULLUP_IMIN
+  //#define ENDSTOPPULLUP_IMIN
   //#define ENDSTOPPULLUP_JMIN
   //#define ENDSTOPPULLUP_KMIN
   //#define ENDSTOPPULLUP_UMIN
@@ -1909,7 +1909,7 @@
   #define Z_MAX_POS 200
 #endif
 #define I_MIN_POS 0
-#define I_MAX_POS 25 // Conservative commissioning limit; replace with measured usable stroke
+#define I_MAX_POS 300 // Conservative commissioning limit; replace with measured usable stroke
 //#define J_MIN_POS 0
 //#define J_MAX_POS 50
 //#define K_MIN_POS 0
