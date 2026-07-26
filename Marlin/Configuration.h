@@ -174,13 +174,13 @@
 //#define Z2_DRIVER_TYPE TMC2209_STANDALONE
 //#define Z3_DRIVER_TYPE A4988
 //#define Z4_DRIVER_TYPE A4988
-//#define I_DRIVER_TYPE  A4988
+#define I_DRIVER_TYPE  TMC2209_STANDALONE
 //#define J_DRIVER_TYPE  A4988
 //#define K_DRIVER_TYPE  A4988
 //#define U_DRIVER_TYPE  A4988
 //#define V_DRIVER_TYPE  A4988
 //#define W_DRIVER_TYPE  A4988
-#define E0_DRIVER_TYPE TMC2209_STANDALONE
+//#define E0_DRIVER_TYPE TMC2209_STANDALONE
 //#define E1_DRIVER_TYPE TMC2209_STANDALONE
 //#define E2_DRIVER_TYPE A4988
 //#define E3_DRIVER_TYPE A4988
@@ -208,7 +208,7 @@
  */
 #ifdef I_DRIVER_TYPE
   #define AXIS4_NAME 'A' // :['A', 'B', 'C', 'U', 'V', 'W']
-  #define AXIS4_ROTATES
+  //#define AXIS4_ROTATES
 #endif
 #ifdef J_DRIVER_TYPE
   #define AXIS5_NAME 'B' // :['B', 'C', 'U', 'V', 'W']
@@ -1063,7 +1063,7 @@
 #define USE_XMIN_PLUG
 #define USE_YMIN_PLUG
 //#define USE_ZMIN_PLUG
-//#define USE_IMIN_PLUG
+#define USE_IMIN_PLUG
 //#define USE_JMIN_PLUG
 //#define USE_KMIN_PLUG
 //#define USE_UMIN_PLUG
@@ -1086,7 +1086,7 @@
   //#define ENDSTOPPULLUP_XMIN
   //#define ENDSTOPPULLUP_YMIN
   //#define ENDSTOPPULLUP_ZMIN
-  //#define ENDSTOPPULLUP_IMIN
+  #define ENDSTOPPULLUP_IMIN
   //#define ENDSTOPPULLUP_JMIN
   //#define ENDSTOPPULLUP_KMIN
   //#define ENDSTOPPULLUP_UMIN
@@ -1137,7 +1137,7 @@
 #define Y_MAX_ENDSTOP_INVERTING true
 #define Z_MAX_ENDSTOP_INVERTING true
 #define Z_MIN_PROBE_ENDSTOP_INVERTING true
-#define I_MIN_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
+#define I_MIN_ENDSTOP_INVERTING false // Active-low former filament sensor input
 #define J_MIN_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
 #define K_MIN_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
 #define U_MIN_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
@@ -1208,7 +1208,7 @@
   #define DEFAULT_AXIS_STEPS_PER_UNIT   { 160.0, 160.0, 800.0, 197.48 } //XY20齿换16次:160->200
 #elif TRONXY_PROJ == PROJ_XY2_PRO
   #if USE_EXTRUDER == 1 //T:TITAN
-  #define DEFAULT_AXIS_STEPS_PER_UNIT   { 160.0, 160.0, 800.0, 766.22 }
+  #define DEFAULT_AXIS_STEPS_PER_UNIT   { 160.0, 160.0, 800.0, 640.0 }
   #elif USE_EXTRUDER == 4 //g:普通挤出机
   #define DEFAULT_AXIS_STEPS_PER_UNIT   { 160.0, 160.0, 800.0, 197.48 }
   #else
@@ -1236,12 +1236,12 @@
   #define DEFAULT_MAX_FEEDRATE          { 150, 150, 30, 8} //X Y Z E
   #endif
 #else
-  #define DEFAULT_MAX_FEEDRATE          { 150, 150, 15, 40 }
+  #define DEFAULT_MAX_FEEDRATE          { 150, 150, 15, 3 }
 #endif
 
 #define LIMITED_MAX_FR_EDITING        // Limit edit via M203 or LCD to DEFAULT_MAX_FEEDRATE * 2
 #if ENABLED(LIMITED_MAX_FR_EDITING)
-  #define MAX_FEEDRATE_EDIT_VALUES    { 300, 300, 20, 80 }
+  #define MAX_FEEDRATE_EDIT_VALUES    { 300, 300, 20, 6 }
 #endif
 
 /**
@@ -1257,12 +1257,12 @@
   #define DEFAULT_MAX_ACCELERATION      { 800, 800, 100, 2000} //X Y Z E
   #endif
 #else
-  #define DEFAULT_MAX_ACCELERATION      { 500, 500, 100, 1000 }
+  #define DEFAULT_MAX_ACCELERATION      { 500, 500, 100, 5 }
 #endif
 
 #define LIMITED_MAX_ACCEL_EDITING     // Limit edit via M201 or LCD to DEFAULT_MAX_ACCELERATION * 2
 #if ENABLED(LIMITED_MAX_ACCEL_EDITING)
-  #define MAX_ACCEL_EDIT_VALUES       { 3000, 3000, 200, 10000 }
+  #define MAX_ACCEL_EDIT_VALUES       { 3000, 3000, 200, 10 }
 #endif
 
 /**
@@ -1290,7 +1290,7 @@
   #define DEFAULT_XJERK  8.0 //10.0->15.0
   #define DEFAULT_YJERK  8.0
   #define DEFAULT_ZJERK  0.4
-  //#define DEFAULT_IJERK  0.3
+  #define DEFAULT_IJERK  0.10
   //#define DEFAULT_JJERK  0.3
   //#define DEFAULT_KJERK  0.3
   //#define DEFAULT_UJERK  0.3
@@ -1301,7 +1301,7 @@
 
   #define LIMITED_JERK_EDITING        // Limit edit via M205 or LCD to DEFAULT_aJERK * 2
   #if ENABLED(LIMITED_JERK_EDITING)
-    #define MAX_JERK_EDIT_VALUES { 20, 20, 1.0, 10 } // ...or, set your own edit limits
+    #define MAX_JERK_EDIT_VALUES { 20, 20, 1.0, 0.2 } // ...or, set your own edit limits
   #endif
 #endif
 
@@ -1328,7 +1328,7 @@
  *
  * See https://github.com/synthetos/TinyG/wiki/Jerk-Controlled-Motion-Explained
  */
-//#define S_CURVE_ACCELERATION
+#define S_CURVE_ACCELERATION
 
 //===========================================================================
 //============================= Z Probe Options =============================
@@ -1709,9 +1709,7 @@
 #define Y_ENABLE_ON 0
 #define Z_ENABLE_ON 0
 #define E_ENABLE_ON 0 // For all extruders
-#if TAOLI_SERIAL
 #define I_ENABLE_ON 0
-#endif
 //#define J_ENABLE_ON 0
 //#define K_ENABLE_ON 0
 //#define U_ENABLE_ON 0
@@ -1773,7 +1771,7 @@
 #else
 #define INVERT_Z_DIR true
 #endif
-//#define INVERT_I_DIR false
+#define INVERT_I_DIR false
 //#define INVERT_J_DIR false
 //#define INVERT_K_DIR false
 //#define INVERT_U_DIR false
@@ -1818,9 +1816,7 @@
 #else
 #define Z_HOME_DIR -1
 #endif
-#if TAOLI_SERIAL
 #define I_HOME_DIR -1
-#endif
 //#define J_HOME_DIR -1
 //#define K_HOME_DIR -1
 //#define U_HOME_DIR -1
@@ -1912,8 +1908,8 @@
 #else
   #define Z_MAX_POS 200
 #endif
-//#define I_MIN_POS 0
-//#define I_MAX_POS 50
+#define I_MIN_POS 0
+#define I_MAX_POS 25 // Conservative commissioning limit; replace with measured usable stroke
 //#define J_MIN_POS 0
 //#define J_MAX_POS 50
 //#define K_MIN_POS 0
@@ -2316,7 +2312,7 @@
 #endif
 
 // Homing speeds (linear=mm/min, rotational=°/min)
-#define HOMING_FEEDRATE_MM_M { (60*60), (60*60), (12*60) }
+#define HOMING_FEEDRATE_MM_M { (60*60), (60*60), (12*60), (2*60) }
 
 // Validate that endstops are triggered on homing moves
 #define VALIDATE_HOMING_ENDSTOPS
@@ -2463,7 +2459,7 @@
  *    P1  Raise the nozzle always to Z-park height.
  *    P2  Raise the nozzle by Z-park amount, limited to Z_MAX_POS.
  */
-#define NOZZLE_PARK_FEATURE
+//#define NOZZLE_PARK_FEATURE
 
 #if ENABLED(NOZZLE_PARK_FEATURE)
   // Specify a park position as { X, Y, Z_raise }
@@ -3270,7 +3266,7 @@
 // Usually paired with MKS Robin Nano V1.2
 //
 //#define MKS_ROBIN_TFT32
-#if !TRONXY_UI && LCD_CHIP_INDEX == 4
+#if !TRONXY_UI && !SERIAL_ONLY && LCD_CHIP_INDEX == 4
 #define TRONXY_TFT24
 #endif
 
@@ -3283,7 +3279,7 @@
 //
 // 480x272, 4.3", FSMC Display From MKS
 //
-#if !TRONXY_UI && LCD_CHIP_INDEX == 2
+#if !TRONXY_UI && !SERIAL_ONLY && LCD_CHIP_INDEX == 2
 #define MKS_ROBIN_TFT43
 #endif
 
@@ -3296,7 +3292,7 @@
 //
 // 480x320, 3.5", FSMC Stock Display from TronxXY
 //
-#if !TRONXY_UI && LCD_CHIP_INDEX == 1
+#if !TRONXY_UI && !SERIAL_ONLY && LCD_CHIP_INDEX == 1
 #define TFT_TRONXY_X5SA
 #endif
 
@@ -3360,7 +3356,7 @@
  *   root of your SD card, together with the compiled firmware.
  */
 //#define TFT_CLASSIC_UI
-#if !TRONXY_UI
+#if !TRONXY_UI && !SERIAL_ONLY
 #define TFT_COLOR_UI
 #endif
 //#define TFT_LVGL_UI
@@ -3395,7 +3391,9 @@
 //
 // Touch Screen Settings
 //
-#define TOUCH_SCREEN
+#if !SERIAL_ONLY
+  #define TOUCH_SCREEN
+#endif
 #if ENABLED(TOUCH_SCREEN)
   #define BUTTON_DELAY_EDIT  50 // (ms) Button repeat delay for edit screens
   #define BUTTON_DELAY_MENU 250 // (ms) Button repeat delay for menus

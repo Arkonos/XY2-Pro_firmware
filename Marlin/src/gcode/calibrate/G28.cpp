@@ -67,7 +67,9 @@
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../core/debug_out.h"
 
-#include "../../feature/powerloss.h"
+#if ENABLED(POWER_LOSS_RECOVERY)
+  #include "../../feature/powerloss.h"
+#endif
 #include "../../feature/babystep.h"
 
 #if ENABLED(QUICK_HOME)

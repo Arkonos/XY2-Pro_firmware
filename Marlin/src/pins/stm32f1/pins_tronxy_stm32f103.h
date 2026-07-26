@@ -122,7 +122,7 @@
 //
 #define CONTROLLER_FAN_PIN                  PD6   // BOARD FAN
 #define FAN_PIN                             PG13  // FAN
-#define THROAT_FAN                          1
+#define THROAT_FAN                          NEED_HEAT_HEAD
 #define FAN1_PIN                            PG14
 //
 // Misc
@@ -138,6 +138,9 @@
 #endif
 #ifndef FIL_RUNOUT2_PIN
   #define FIL_RUNOUT2_PIN                   PF13
+#endif
+#if HAS_I_AXIS
+  #define I_MIN_PIN                         PA15 // Former filament sensor input (MT_DET)
 #endif
 
 #define STEP_TIMER                            3

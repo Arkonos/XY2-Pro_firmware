@@ -206,7 +206,7 @@
   static constexpr uint8_t heater_ttbllen_map[HOTENDS] = ARRAY_BY_HOTENDS(TEMPTABLE_0_LEN REPEAT_S(1, HOTENDS, NEXT_TEMPTABLE_LEN));
 #endif
 
-#if defined(THROAT_FAN)
+#if THROAT_FAN > 0
 uint8_t Temperature::throatFanSt[HOTENDS] = {0};
 #endif
 Temperature thermalManager;
@@ -423,11 +423,16 @@ PGMSTR(str_t_heating_failed, STR_T_HEATING_FAILED);
   }
   void Temperature::setThroatFanControl(uint8_t e, uint8_t st)
   {
+    #if THROAT_FAN > 0
       #if ENABLED(DUAL_X_CARRIAGE)
       if(idex_is_duplicating())for(uint8_t i = 0; i < HOTENDS; i++)throatFanSt[i] = st;
       else
       #endif
       throatFanSt[e] = st;
+    #else
+      (void)e;
+      (void)st;
+    #endif
   }
 
   #if ENABLED(REPORT_FAN_CHANGE)
@@ -465,9 +470,12 @@ PGMSTR(str_t_heating_failed, STR_T_HEATING_FAILED);
 #if HOTENDS > 1
 hotend_info_t Temperature::temp_hotend[HOTENDS];
 const celsius_t Temperature::hotend_maxtemp[HOTENDS] = ARRAY_BY_HOTENDS(HEATER_0_MAXTEMP, HEATER_1_MAXTEMP, HEATER_2_MAXTEMP, HEATER_3_MAXTEMP, HEATER_4_MAXTEMP, HEATER_5_MAXTEMP, HEATER_6_MAXTEMP, HEATER_7_MAXTEMP);
-#else
+#elif HOTENDS == 1
 hotend_info_t Temperature::temp_hotend[2];
 const celsius_t Temperature::hotend_maxtemp[2] = {HEATER_0_MAXTEMP, HEATER_0_MAXTEMP};
+#else
+hotend_info_t Temperature::temp_hotend[2];
+const celsius_t Temperature::hotend_maxtemp[2] = { 0, 0 };
 #endif
 uint8_t Temperature::get_fan_speed(uint8_t fan)
 {
@@ -1971,7 +1979,7 @@ void Temperature::task() {
 
   if (!updateTemperaturesIfReady()) return; // Will also reset the watchdog if temperatures are ready
 
-  #if defined(THROAT_FAN) && HAS_FAN
+  #if THROAT_FAN > 0 && HAS_FAN
   if(!throatFanSt[0]) {
     if(degHotend(0) > 50) {
       if(fan_speed[THROAT_FAN] == 0)fan_speed[THROAT_FAN] = 255;

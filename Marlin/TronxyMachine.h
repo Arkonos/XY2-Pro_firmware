@@ -21,7 +21,7 @@
 #define UI_PIC480X320      1
 
 #define TRONXY_PROJ        PROJ_XY2_PRO
-#define TRONXY_UI          UI_PIC480X320 // UI_PIC480X320 or UI_MARLIN_DEFAULT
+#define TRONXY_UI          UI_MARLIN_DEFAULT // Serial-only controller; no local display UI
 
 #if TRONXY_UI > 0
 #define HAS_TRONXY_UI      1
@@ -41,7 +41,7 @@
 #define LASER_SERIAL              0 //wifi端子用于激光PWM控制
 #define DUAL_ZMAX_HOME            1 //大端复位,向反方向复位,再回到正方向找0点
 #define Z_BED_MOVE                0 //Z轴移动:热床
-#define EXTRUDERS                 1 //挤出机数量
+#define EXTRUDERS                 0 // E0 motor socket is reassigned to the linear A axis
 #define INVERT_E0_DIR             true //TITAN:true general:false
 #define USE_EXTRUDER              1 //T,g TITAN:1,BMG:2,TAOLI:3,general:4
 //#define FIX_MOUNTED_PROBE
