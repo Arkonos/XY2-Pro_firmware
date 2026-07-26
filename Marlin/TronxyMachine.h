@@ -27,7 +27,7 @@
 #define HAS_TRONXY_UI      1
 #endif
 #if TRONXY_PROJ
-q#define HAS_TRONXY_PROJ    1
+#define HAS_TRONXY_PROJ    1
 #endif
 
 #if TRONXY_PROJ == PROJ_XY2_PRO
