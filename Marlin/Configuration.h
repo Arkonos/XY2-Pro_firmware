@@ -1137,13 +1137,13 @@
 #define Y_MAX_ENDSTOP_INVERTING true
 #define Z_MAX_ENDSTOP_INVERTING true
 #define Z_MIN_PROBE_ENDSTOP_INVERTING true
-#define I_MIN_ENDSTOP_INVERTING false // Active-low former filament sensor input
+#define I_MIN_ENDSTOP_INVERTING true // Former filament input: released=open, pressed=TRIGGERED
 #define J_MIN_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
 #define K_MIN_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
 #define U_MIN_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
 #define V_MIN_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
 #define W_MIN_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
-#define I_MAX_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
+#define I_MAX_ENDSTOP_INVERTING true // Former filament input: released=open, pressed=TRIGGERED
 #define J_MAX_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
 #define K_MAX_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
 #define U_MAX_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.

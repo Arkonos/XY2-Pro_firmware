@@ -194,8 +194,8 @@
  *
  * Parameters
  *
- *  None  Home to all axes with no parameters.
- *        With QUICK_HOME enabled XY will home together, then Z.
+ *  None  Home the standard XYZ axes. Explicit-only axes are excluded.
+ *        With QUICK_HOME enabled XY will home together.
  *
  *  L<bool>   Force leveling state ON (if possible) or OFF after homing (Requires RESTORE_LEVELING_AFTER_G28 or ENABLE_LEVELING_AFTER_G28)
  *  O         Home only if the position is not known and trusted
@@ -206,12 +206,24 @@
  *  X   Home to the X endstop
  *  Y   Home to the Y endstop
  *  Z   Home to the Z endstop
+ *  A<0|1> Home A independently to its min (0) or max (1) endstop.
+ *         A without a value uses I_HOME_DIR. A plain G28 never homes A.
  */
 void GcodeSuite::G28() {
   DEBUG_SECTION(log_G28, "G28", DEBUGGING(LEVELING));
   if (DEBUGGING(LEVELING)) log_machine_info();
 
   TERN_(BD_SENSOR, bdl.config_state = 0);
+
+  #if HAS_I_AXIS
+    const bool homeI_requested = parser.seen_test(AXIS4_NAME);
+    const int16_t i_endstop = parser.intval(AXIS4_NAME, I_HOME_DIR > 0);
+    if (homeI_requested && !WITHIN(i_endstop, 0, 1)) {
+      SERIAL_ERROR_MSG("G28 ", AS_CHAR(AXIS4_NAME), " accepts only 0 (min) or 1 (max).");
+      return;
+    }
+    const int8_t i_home_dir = i_endstop ? 1 : -1;
+  #endif
 
   /**
    * Set the laser power to false to stop the planner from processing the current power setting.
@@ -238,9 +250,15 @@ void GcodeSuite::G28() {
   #endif
 
   // Home (O)nly if position is unknown
-  if (!axes_should_home() && parser.seen_test('O')) {
-    if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("> homing not needed, skip");
-    return;
+  if (parser.seen_test('O')) {
+    main_axes_bits_t axes_to_check = main_axes_mask;
+    #if HAS_I_AXIS
+      if (!homeI_requested) CBI(axes_to_check, I_AXIS);
+    #endif
+    if (!axes_should_home(axes_to_check)) {
+      if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("> homing not needed, skip");
+      return;
+    }
   }
 
   #if ENABLED(FULL_REPORT_TO_HOST_FEATURE)
@@ -395,7 +413,7 @@ void GcodeSuite::G28() {
                  homeX = needX || parser.seen_test('X'),
                  homeY = needY || parser.seen_test('Y'),
                  homeZZ = homeZ,
-                 homeI = needI || parser.seen_test(AXIS4_NAME), homeJ = needJ || parser.seen_test(AXIS5_NAME),
+                 homeI = homeI_requested, homeJ = needJ || parser.seen_test(AXIS5_NAME),
                  homeK = needK || parser.seen_test(AXIS6_NAME), homeU = needU || parser.seen_test(AXIS7_NAME),
                  homeV = needV || parser.seen_test(AXIS8_NAME), homeW = needW || parser.seen_test(AXIS9_NAME)
                ),
@@ -406,7 +424,7 @@ void GcodeSuite::G28() {
                ),
                NUM_AXIS_LIST(
                  doX = home_all || homeX, doY = home_all || homeY, doZ = home_all || homeZ,
-                 doI = home_all || homeI, doJ = home_all || homeJ, doK = home_all || homeK,
+                 doI = homeI, doJ = home_all || homeJ, doK = home_all || homeK,
                  doU = home_all || homeU, doV = home_all || homeV, doW = home_all || homeW
                );
 
@@ -414,6 +432,9 @@ void GcodeSuite::G28() {
       UNUSED(needZ); UNUSED(homeZZ);
     #else
       constexpr bool doZ = false;
+    #endif
+    #if HAS_I_AXIS
+      UNUSED(needI);
     #endif
     
     #if USE_Z_LIMIT_PROBE_0 && ENABLED(HOME_Z_FIRST)
@@ -495,7 +516,7 @@ void GcodeSuite::G28() {
 
     #if BOTH(FOAMCUTTER_XYUV, HAS_I_AXIS)
       // Home I (after X)
-      if (doI) homeaxis(I_AXIS);
+      if (doI) homeaxis(I_AXIS, i_home_dir);
     #endif
 
     // Home Y (after X)
@@ -606,7 +627,7 @@ void GcodeSuite::G28() {
         #if TAOLI_SERIAL
         if (doI) set_axis_is_at_home(I_AXIS),
         #else
-        if (doI) homeaxis(I_AXIS),
+        if (doI) homeaxis(I_AXIS, i_home_dir),
         #endif
         if (doJ) homeaxis(J_AXIS),
         if (doK) homeaxis(K_AXIS),

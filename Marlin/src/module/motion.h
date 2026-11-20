@@ -409,7 +409,7 @@ void set_axis_is_at_home(const AxisEnum axis);
    *   Cleared whenever a stepper powers off, potentially losing its position.
    */
   extern main_axes_bits_t axes_homed, axes_trusted;
-  void homeaxis(const AxisEnum axis);
+  void homeaxis(const AxisEnum axis, const int8_t home_dir_override=0);
   void set_axis_never_homed(const AxisEnum axis);
   main_axes_bits_t axes_should_home(main_axes_bits_t axes_mask=main_axes_mask);
   bool homing_needed_error(main_axes_bits_t axes_mask=main_axes_mask);
@@ -421,7 +421,7 @@ void set_axis_is_at_home(const AxisEnum axis);
   inline void set_all_homed()                         { axes_homed = axes_trusted = main_axes_mask; }
 #else
   constexpr main_axes_bits_t axes_homed = main_axes_mask, axes_trusted = main_axes_mask; // Zero-endstop machines are always homed and trusted
-  inline void homeaxis(const AxisEnum axis)           {}
+  inline void homeaxis(const AxisEnum axis, const int8_t=0) {}
   inline void set_axis_never_homed(const AxisEnum)    {}
   inline main_axes_bits_t axes_should_home(main_axes_bits_t=main_axes_mask) { return 0; }
   inline bool homing_needed_error(main_axes_bits_t=main_axes_mask) { return false; }

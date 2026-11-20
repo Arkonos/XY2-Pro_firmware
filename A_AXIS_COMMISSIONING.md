@@ -4,19 +4,20 @@ This firmware repurposes the original extruder hardware as a fourth linear
 axis:
 
 - G-code axis: `A` (called `I` internally by Marlin)
-- Stepper connector: original `E0` connector
+- Stepper connector: `E1-Motor` on the moving breakout board (Marlin driver `E0`)
 - Minimum endstop connector: original filament / `MT_DET` connector
 - Minimum endstop MCU pin: `PA15`
 - Initial steps: `640 steps/mm`
 - Initial maximum speed: `3 mm/s`
 - Initial maximum acceleration: `5 mm/s²`
 - Homing speed: `2 mm/s`, followed by a `1 mm/s` second approach
-- Temporary software travel: `A=0..25 mm`
+- Compiled software travel: `A=0..300 mm`; keep initial tests within 25 mm
 
 Positive A motion must move away from the minimum switch. Negative A motion
 must move toward it.
 
-The 25 mm maximum is only a conservative commissioning limit. Replace
+The 25 mm test range is a conservative commissioning limit, not the current
+compiled software maximum (`I_MAX_POS` is 300 mm). Replace
 `I_MAX_POS` in `Marlin/Configuration.h` with the measured usable stroke and
 reflash after commissioning.
 
@@ -29,18 +30,24 @@ reflash after commissioning.
    reliable way to stop motion when wiring or direction is wrong.
 3. Start with the carriage well away from both mechanical ends.
 4. Do not rely on the minimum switch to stop ordinary `G0` / `G1` moves.
-   Marlin normally monitors it as a stopping input during homing. Software
+   This configuration enables `ENDSTOPS_ALWAYS_ON_DEFAULT`, so a triggered
+   minimum or maximum input can also stop ordinary moves toward that end.
+   Verify both inputs before testing; this does not replace correct wiring.
+   Software
    endstops protect ordinary moves only after the axis has been homed.
 5. Rehome after power cycling, manually turning the screw, loosening the belt,
    or disabling the A motor.
-6. Keep all tests below the temporary 25 mm software maximum until the usable
+6. Keep all tests below the 25 mm commissioning test limit until the usable
    stroke has been measured and configured.
 
 ## 1. Check wiring with power disconnected
 
 1. Switch off and unplug the controller.
-2. Connect the ballscrew motor to the original `E0` motor connector. Do not
-   use `E1`, `Z2`, or an endstop connector.
+2. Connect the ballscrew motor to `E1-Motor` on the smaller, moving breakout
+   board, beside `X-Motor`. This is the original extruder connection: Tronxy
+   labels the first extruder `E1`, while Marlin calls its driver `E0`.
+   Marlin's `E1` driver means the second extruder output, corresponding to
+   Tronxy's `E2`. Do not use `Z2` or an endstop connector.
 3. If using the original E motor cable, keep its conductor order unchanged.
 4. If making a new cable, identify the two motor coils with a multimeter:
    conductors belonging to one coil show a low resistance to each other;
@@ -87,9 +94,9 @@ M201 ... A5
 Do not continue if the serial connection is unreliable or the A values are
 missing.
 
-## 3. Prove the minimum sensor before moving the motor
+## 3. Prove both endstops before moving the motor
 
-Release the sensor and send:
+Release both switches and send:
 
 ```gcode
 M119
@@ -99,17 +106,21 @@ The response must include:
 
 ```text
 a_min: open
+a_max: open
 ```
 
-Hold the sensor in its mechanically triggered state and send `M119` again.
-It must now include:
+Press only the minimum switch and send `M119` again. It must now include:
 
 ```text
 a_min: TRIGGERED
+a_max: open
 ```
 
-Repeat this at least ten times while gently moving the sensor cable and
-connector. Every reading must be unambiguous and repeatable.
+Release it, press only the maximum switch, and confirm `a_min: open` and
+`a_max: TRIGGERED`. Release both and confirm both return to `open`.
+
+Repeat this at least ten times for each switch while gently moving its cable
+and connector. Every reading must be unambiguous and repeatable.
 
 If the state is always the same:
 
@@ -119,16 +130,35 @@ If the state is always the same:
 4. Check that the sensor signal changes between its released and actuated
    states.
 
-If the two states are exactly reversed, change:
+Both inputs use the following polarity for the connected switches:
 
 ```cpp
-#define I_MIN_ENDSTOP_INVERTING false
+#define I_MIN_ENDSTOP_INVERTING true
+#define I_MAX_ENDSTOP_INVERTING true
 ```
 
-to `true`, rebuild, flash, and repeat this section. Do not attempt homing with
-reversed or intermittent sensor reporting.
+Rebuild and flash after changing these settings; they are compiled settings,
+so an EEPROM reset alone does not change them. Repeat `M119` checks after
+flashing. Do not attempt homing with reversed or intermittent reporting.
 
 ## 4. Prove unloaded motor rotation
+
+If the motor does not move, check the following before changing connectors:
+
+- `M503` must report `A` settings. Commands use `A`, not the internal axis
+  name `I` or the former extruder axis `E`.
+- `M119` must report both `a_min` and `a_max`. A triggered `a_max` can block
+  positive motion, and a triggered `a_min` can block negative motion because
+  `ENDSTOPS_ALWAYS_ON_DEFAULT` is enabled. The inputs are the former
+  filament signals `PA15` and `PF13`; removed sensors do not prove that the
+  firmware reads them as open. Correct the input state before moving.
+- Current source assigns A/I to Marlin `E0`: STEP=`PB4`, DIR=`PB5`,
+  ENABLE=`PB8` (active low). The second driver, Marlin `E1`, uses
+  `PC7`/`PC6`/`PG8` and is not the A output.
+- Confirm motor power, the ribbon cable between the boards, the motor
+  cable, and coil continuity with power disconnected. If firmware reports
+  movement but the shaft stays still, this alone does not prove the driver
+  or wiring works.
 
 For the first motor test, disconnect the belt or loosen the coupling so the
 motor cannot drive the carriage. Power must be off while changing the
@@ -241,11 +271,21 @@ Only continue after:
 - Positive A motion has been proven to move away from the sensor.
 - The measured travel scale is reasonably correct.
 
+The A axis is deliberately excluded from a plain `G28`, which homes only
+Z, X, and Y. It must be named explicitly:
+
+```gcode
+G28 A       ; Home to the configured default, currently A-min
+G28 A0      ; Home to A-min
+G28 A1      ; Home to A-max
+G28 A 1     ; The spaced form is also accepted
+```
+
 Place the carriage 5 to 10 mm away from A-min and send:
 
 ```gcode
 M119
-G28 A
+G28 A0
 ```
 
 Expected sequence:
@@ -254,7 +294,7 @@ Expected sequence:
 2. It stops when the sensor triggers.
 3. It backs away by 1 mm.
 4. It approaches again at 1 mm/s.
-5. It stops and establishes A=0.
+5. It stops, establishes A=0, and pulls 5 mm away from the endstop.
 
 Immediately remove power if it moves away from the switch, reaches the switch
 without stopping, or makes an unexpected fast move.
@@ -265,11 +305,13 @@ After a successful home:
 M114
 ```
 
-The A coordinate should be zero. Check repeatability at least five times:
+The A coordinate should be 5 mm because the carriage has pulled away from
+the A=0 endstop. After `G28 A1` it should be `I_MAX_POS - 5`. Check
+repeatability at least five times:
 
 ```gcode
 G1 A5 F60
-G28 A
+G28 A0
 ```
 
 The carriage should return to the same physical zero without grinding or
@@ -277,8 +319,9 @@ creeping farther into the switch.
 
 ## 8. Measure and configure the usable stroke
 
-The compiled maximum is temporarily 25 mm. Do not disable software endstops
-to work around it.
+The current compiled maximum is 300 mm, which has not been established here
+as safe physical travel. Keep initial tests within 25 mm and configure the
+measured usable stroke. Do not disable software endstops to extend travel.
 
 1. Home A.
 2. Power off.
@@ -300,7 +343,7 @@ stroke, including pulley, bearing, nut, and switch geometry.
 Home first, then test increasing speeds without approaching either end:
 
 ```gcode
-G28 A
+G28 A0
 G1 A5  F30
 G1 A10 F60
 G1 A15 F120
@@ -351,12 +394,14 @@ into the source configuration so a future `M502` restores the correct values.
 
 ## Acceptance checklist
 
-- [ ] Motor is connected to E0 and never plugged/unplugged while powered.
+- [ ] Motor is connected to the breakout board's `E1-Motor` (Marlin `E0`)
+      and never plugged/unplugged while powered.
 - [ ] Sensor is connected to the filament / MT_DET connector.
 - [ ] `M119` is repeatable: released=`open`, actuated=`TRIGGERED`.
 - [ ] Positive A moves away from A-min.
 - [ ] A10 produces 10.00 mm of physical motion within the required tolerance.
-- [ ] `G28 A` performs both approaches and returns repeatably to A=0.
+- [ ] `G28 A0` performs both approaches, establishes A=0, and pulls off 5 mm.
+- [ ] `G28 A1` performs both approaches, establishes A=`I_MAX_POS`, and pulls off 5 mm.
 - [ ] `I_MAX_POS` is the measured collision-free stroke minus a safety margin.
 - [ ] Motion is smooth at 0.5, 1, 2, and 3 mm/s under load.
 - [ ] No missed steps, binding, unusual heating, or belt tracking problems.
