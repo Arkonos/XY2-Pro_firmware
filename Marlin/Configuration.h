@@ -1257,12 +1257,12 @@
   #define DEFAULT_MAX_ACCELERATION      { 800, 800, 100, 2000} //X Y Z E
   #endif
 #else
-  #define DEFAULT_MAX_ACCELERATION      { 500, 500, 100, 5 }
+  #define DEFAULT_MAX_ACCELERATION      { 500, 500, 100, 500 }
 #endif
 
 #define LIMITED_MAX_ACCEL_EDITING     // Limit edit via M201 or LCD to DEFAULT_MAX_ACCELERATION * 2
 #if ENABLED(LIMITED_MAX_ACCEL_EDITING)
-  #define MAX_ACCEL_EDIT_VALUES       { 3000, 3000, 200, 10 }
+  #define MAX_ACCEL_EDIT_VALUES       { 3000, 3000, 200, 3000 }
 #endif
 
 /**
@@ -1290,7 +1290,7 @@
   #define DEFAULT_XJERK  8.0 //10.0->15.0
   #define DEFAULT_YJERK  8.0
   #define DEFAULT_ZJERK  0.4
-  #define DEFAULT_IJERK  0.10
+  #define DEFAULT_AJERK  8.0
   //#define DEFAULT_JJERK  0.3
   //#define DEFAULT_KJERK  0.3
   //#define DEFAULT_UJERK  0.3
@@ -1301,7 +1301,7 @@
 
   #define LIMITED_JERK_EDITING        // Limit edit via M205 or LCD to DEFAULT_aJERK * 2
   #if ENABLED(LIMITED_JERK_EDITING)
-    #define MAX_JERK_EDIT_VALUES { 20, 20, 1.0, 0.2 } // ...or, set your own edit limits
+    #define MAX_JERK_EDIT_VALUES { 20, 20, 1.0, 20 } // ...or, set your own edit limits
   #endif
 #endif
 
