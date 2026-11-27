@@ -1236,12 +1236,12 @@
   #define DEFAULT_MAX_FEEDRATE          { 150, 150, 30, 8} //X Y Z E
   #endif
 #else
-  #define DEFAULT_MAX_FEEDRATE          { 150, 150, 15, 3 }
+  #define DEFAULT_MAX_FEEDRATE          { 150, 150, 15, 150 }
 #endif
 
 #define LIMITED_MAX_FR_EDITING        // Limit edit via M203 or LCD to DEFAULT_MAX_FEEDRATE * 2
 #if ENABLED(LIMITED_MAX_FR_EDITING)
-  #define MAX_FEEDRATE_EDIT_VALUES    { 300, 300, 20, 6 }
+  #define MAX_FEEDRATE_EDIT_VALUES    { 300, 300, 20, 300 }
 #endif
 
 /**
